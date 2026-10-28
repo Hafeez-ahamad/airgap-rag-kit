@@ -41,6 +41,15 @@ dev = [
     "types-openpyxl",
 ]
 
+# CPU-only torch for the model-service image (Phase 1 dev). A CUDA variant is added in Phase 2.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
 [build-system]
 requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"

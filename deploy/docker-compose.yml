@@ -1,0 +1,195 @@
+# AirGap RAG Kit: development / single-host stack.
+#
+# Networks (BUILD_PROMPT §3.1):
+#   backend: internal: true, so no route off the host. Every service except the proxy is here only.
+#   edge:    only the proxy publishes ports to the LAN. The proxy joins both networks.
+# Also block outbound traffic on the host firewall (docs/runbook.md, Phase 4).
+#
+# Dev quick start (network allowed only for the first build and model fetch):
+#   ./deploy/dev/init_secrets.sh
+#   ./deploy/dev/fetch_models.sh                      # embedder + reranker into ./models
+#   docker compose -f deploy/docker-compose.yml --profile fetch run --rm ollama-fetch
+#   docker compose -f deploy/docker-compose.yml up -d --build
+#
+# Runtime versions pinned below; Ollama settings checked against docs.ollama.com/faq on 2026-10-28.
+
+name: airgap
+
+x-hardening: &hardening
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+
+x-app-env: &app-env
+  AIRGAP_ENV: ${AIRGAP_ENV:-development}
+  AIRGAP_DEV_AUTH: ${AIRGAP_DEV_AUTH:-1}
+  AIRGAP_DATABASE_URL: postgresql+psycopg://airgap:{password}@postgres:5432/airgap
+  AIRGAP_DATABASE_PASSWORD_FILE: /run/secrets/pg_password
+  AIRGAP_REDIS_URL: redis://redis:6379/0
+  AIRGAP_QDRANT_URL: http://qdrant:6333
+  AIRGAP_MODEL_SERVICE_URL: http://models:8001
+  AIRGAP_OLLAMA_URL: http://ollama:11434
+  AIRGAP_LLM_MODEL: ${AIRGAP_LLM_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
+  AIRGAP_LLM_NUM_CTX: ${AIRGAP_LLM_NUM_CTX:-4096}
+  AIRGAP_BLOB_ROOT: /data/blobs
+  AIRGAP_MAX_UPLOAD_BYTES: ${AIRGAP_MAX_UPLOAD_BYTES:-52428800}
+  AIRGAP_CONFIDENCE_THRESHOLD: ${AIRGAP_CONFIDENCE_THRESHOLD:-0.30}
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+
+networks:
+  backend:
+    internal: true
+  edge: {}
+  fetch: {}   # dev only, used by the "fetch" profile; never by the running kit
+
+volumes:
+  pgdata: {}
+  qdrant: {}
+  blobs: {}
+  ollama: {}
+
+secrets:
+  pg_password:
+    file: ./secrets/pg_password
+  tls_cert:
+    file: ./secrets/tls/server.crt
+  tls_key:
+    file: ./secrets/tls/server.key
+
+services:
+  proxy:
+    <<: *hardening
+    build: { context: ../frontend, target: proxy }
+    image: airgap/proxy:dev
+    cap_add: ["CHOWN", "SETUID", "SETGID", "NET_BIND_SERVICE"]
+    ports:
+      - "${AIRGAP_HTTPS_PORT:-8443}:8443"
+    networks: [edge, backend]
+    secrets: [tls_cert, tls_key]
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "--no-check-certificate", "https://127.0.0.1:8443/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  api:
+    <<: *hardening
+    build: { context: ../backend, target: api }
+    image: airgap/api:dev
+    environment: *app-env
+    networks: [backend]
+    secrets: [pg_password]
+    volumes: ["blobs:/data/blobs"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      qdrant: { condition: service_healthy }
+
+  worker:
+    <<: *hardening
+    build: { context: ../backend, target: worker }
+    image: airgap/worker:dev
+    environment: *app-env
+    networks: [backend]
+    secrets: [pg_password]
+    volumes: ["blobs:/data/blobs"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    mem_limit: 1g
+    pids_limit: 128
+    depends_on:
+      api: { condition: service_healthy }   # api runs the migrations
+      models: { condition: service_healthy }
+
+  models:
+    <<: *hardening
+    build: { context: ../backend, target: models }
+    image: airgap/models:dev
+    environment:
+      AIRGAP_EMBEDDER_PATH: /models/embedder
+      AIRGAP_RERANKER_PATH: /models/reranker
+      AIRGAP_MODEL_DEVICE: ${AIRGAP_MODEL_DEVICE:-cpu}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    networks: [backend]
+    volumes:
+      - "${EMBEDDER_DIR:-../models/bge-m3}:/models/embedder:ro"
+      - "${RERANKER_DIR:-../models/bge-reranker-v2-m3}:/models/reranker:ro"
+    read_only: true
+    tmpfs: ["/tmp"]
+
+  ollama:
+    <<: *hardening
+    image: ollama/ollama:0.40.12
+    cap_drop: []    # runtime needs default capabilities; still on the internal network only
+    environment:
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-1}
+      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-1}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+      OLLAMA_CONTEXT_LENGTH: ${AIRGAP_LLM_NUM_CTX:-4096}
+      OLLAMA_KV_CACHE_TYPE: ${OLLAMA_KV_CACHE_TYPE:-f16}
+      OLLAMA_NOPRUNE: "1"
+    networks: [backend]
+    volumes: ["ollama:/root/.ollama"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    <<: *hardening
+    image: qdrant/qdrant:v1.20.0
+    environment:
+      QDRANT__TELEMETRY_DISABLED: "true"
+    networks: [backend]
+    volumes: ["qdrant:/qdrant/storage"]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    <<: *hardening
+    image: postgres:17.11-bookworm
+    cap_add: ["CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"]
+    environment:
+      POSTGRES_USER: airgap
+      POSTGRES_DB: airgap
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+    secrets: [pg_password]
+    networks: [backend]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airgap -d airgap"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    <<: *hardening
+    image: valkey/valkey:8.1.11-alpine   # BSD-3 Redis-compatible server (ADR-0004, pending)
+    cap_add: ["CHOWN", "SETUID", "SETGID"]
+    command: ["valkey-server", "--save", "60", "1", "--appendonly", "yes"]
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---- dev-only helper: pulls the Ollama model into the shared volume. Not part of the kit. ----
+  ollama-fetch:
+    profiles: ["fetch"]
+    image: ollama/ollama:0.40.12
+    networks: [fetch]
+    volumes: ["ollama:/root/.ollama"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "ollama serve & sleep 3 && ollama pull ${AIRGAP_LLM_MODEL:-qwen3:4b-instruct-2507-q4_K_M}"

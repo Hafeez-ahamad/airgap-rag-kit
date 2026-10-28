@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import quote
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,7 +16,9 @@ class Settings(BaseSettings):
     env: str = "development"  # "production" disables every dev shortcut
     dev_auth: bool = False  # Phase 1 stub user; replaced by real auth in Phase 3
 
+    # May contain "{password}", filled from database_password_file (a compose secret).
     database_url: str = "sqlite:///./airgap-dev.db"
+    database_password_file: Path | None = None
     redis_url: str = "redis://redis:6379/0"
     qdrant_url: str = "http://qdrant:6333"
     qdrant_collection: str = "chunks"
@@ -47,6 +50,15 @@ class Settings(BaseSettings):
         if self.env == "production" and self.dev_auth:
             raise ValueError("AIRGAP_DEV_AUTH must not be enabled when AIRGAP_ENV=production")
         return self
+
+    @property
+    def resolved_database_url(self) -> str:
+        if "{password}" not in self.database_url:
+            return self.database_url
+        if self.database_password_file is None:
+            raise ValueError("database_url has {password} but no database_password_file is set")
+        password = self.database_password_file.read_text(encoding="utf-8").strip()
+        return self.database_url.replace("{password}", quote(password, safe=""))
 
 
 @lru_cache(maxsize=1)

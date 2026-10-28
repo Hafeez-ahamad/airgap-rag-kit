@@ -1,0 +1,81 @@
+name: ci
+
+on:
+  push:
+    branches: [main, "phase-*/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+      - run: uv sync --frozen --python 3.12
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest -q
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run build
+
+  images:
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create dev-only secrets so compose config resolves
+        run: bash deploy/dev/init_secrets.sh
+      - run: docker compose -f deploy/docker-compose.yml config --quiet
+      - name: Check every non-proxy service is on the internal network only
+        run: |
+          docker compose -f deploy/docker-compose.yml config --format json > /tmp/compose.json
+          python3 - <<'EOF'
+          import json, sys
+          cfg = json.load(open("/tmp/compose.json"))
+          assert cfg["networks"]["backend"].get("internal") is True, "backend must be internal"
+          bad = []
+          for name, svc in cfg["services"].items():
+              if "fetch" in svc.get("profiles", []):
+                  continue
+              nets = set(svc.get("networks", {}))
+              if name == "proxy":
+                  if nets != {"edge", "backend"}: bad.append(f"{name}: {nets}")
+              elif nets != {"backend"} or svc.get("ports"):
+                  bad.append(f"{name}: networks={nets} ports={svc.get('ports')}")
+          if bad:
+              sys.exit("network policy violated: " + "; ".join(bad))
+          print("network policy ok")
+          EOF
+      - run: docker compose -f deploy/docker-compose.yml build api worker proxy
+      # The runtime no-egress test (F21) arrives in Phase 4 (BUILD_PROMPT §8, Phase 4 task 7).
+
+  gitleaks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks (container, no licence key needed)
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git /repo --redact --verbose

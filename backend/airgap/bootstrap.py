@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import logging
 import signal
+import tempfile
 import time
+from pathlib import Path
 from types import FrameType
 
 from fastapi import FastAPI
@@ -33,6 +35,7 @@ from airgap.retrieval.qdrant_store import QdrantStore
 from airgap.retrieval.retriever import HybridRetriever, RetrieverConfig
 
 log = logging.getLogger(__name__)
+HEARTBEAT = Path(tempfile.gettempdir()) / "airgap-worker-heartbeat"
 
 
 def _db_ok(sessions: sessionmaker[Session]) -> bool:
@@ -42,7 +45,7 @@ def _db_ok(sessions: sessionmaker[Session]) -> bool:
 
 
 def build_services(settings: Settings) -> Services:
-    sessions = make_session_factory(make_engine(settings.database_url))
+    sessions = make_session_factory(make_engine(settings.resolved_database_url))
     qdrant = QdrantClient(url=settings.qdrant_url, timeout=30)
     store = QdrantStore(qdrant, settings.qdrant_collection)
     queue = RedisQueue(settings.redis_url)
@@ -96,7 +99,7 @@ def worker() -> None:
     enforce_offline()
     settings = get_settings()
     configure_logging()
-    sessions = make_session_factory(make_engine(settings.database_url))
+    sessions = make_session_factory(make_engine(settings.resolved_database_url))
     queue = RedisQueue(settings.redis_url)
     pipeline = IngestionPipeline(
         sessions,
@@ -122,6 +125,7 @@ def worker() -> None:
     signal.signal(signal.SIGINT, _stop)
     log.info("ingestion worker started")
     while running:
+        HEARTBEAT.touch()  # liveness for the container health check
         try:
             job = queue.dequeue(timeout_s=2)
         except Exception:
