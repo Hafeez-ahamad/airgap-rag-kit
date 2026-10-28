@@ -1,6 +1,6 @@
 # ADR-0003: PDF library is pypdfium2, not PyMuPDF
 
-Status: **proposed, awaiting owner approval** (2026-10-28)
+Status: accepted (2026-10-28, approved by owner)
 
 BUILD_PROMPT §3 names PyMuPDF. PyMuPDF is licensed under **AGPL-3.0** (or a paid commercial
 licence from Artifex). The kit is distributed as an offline bundle under Apache-2.0, so bundling

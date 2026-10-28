@@ -32,7 +32,7 @@ pyyaml 6.0.3 ........... MIT
 Tesseract OCR .......... Apache-2.0 (language data: Apache-2.0)
 Qdrant ................. Apache-2.0
 PostgreSQL ............. PostgreSQL License
-Valkey ................. BSD-3-Clause  (pending approval; see ADR-0004)
+Valkey ................. BSD-3-Clause  (replaces the Redis server; see ADR-0004)
 Ollama ................. MIT
 nginx .................. BSD-2-Clause
 

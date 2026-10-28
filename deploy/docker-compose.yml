@@ -174,7 +174,7 @@ services:
 
   redis:
     <<: *hardening
-    image: valkey/valkey:8.1.11-alpine   # BSD-3 Redis-compatible server (ADR-0004, pending)
+    image: valkey/valkey:8.1.11-alpine   # BSD-3 Redis-compatible server (ADR-0004)
     cap_add: ["CHOWN", "SETUID", "SETGID"]
     command: ["valkey-server", "--save", "60", "1", "--appendonly", "yes"]
     networks: [backend]

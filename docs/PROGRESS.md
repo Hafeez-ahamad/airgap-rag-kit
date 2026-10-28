@@ -15,9 +15,8 @@ _Last updated: 2026-10-28 (session 1, end)_
 - **Blockers:**
   1. **WSL2 and Docker Desktop are not installed.** `wsl --install` needs admin rights and a reboot, so the owner must run it. Then install Docker Desktop.
   2. Tesseract is not installed locally, so the real-OCR test is skipped. CI installs it.
+- **Approved 2026-10-28:** ADR-0003 (pypdfium2 instead of PyMuPDF) and ADR-0004 (Valkey instead of the Redis server; psycopg LGPL accepted).
 - **Decisions waiting on the owner:**
-  - ADR-0003: replace PyMuPDF (AGPL) with pypdfium2.
-  - ADR-0004: run Valkey (BSD-3) instead of the Redis server (RSAL/SSPL/AGPL). Accept psycopg (LGPL).
   - Whether to upgrade local Node to 24 LTS, which allows Vite 8 and ESLint 10.
 - **Exact next step:** once Docker works, run `bash deploy/dev/init_secrets.sh`, `bash deploy/dev/fetch_models.sh`, `docker compose -f deploy/docker-compose.yml --profile fetch run --rm ollama-fetch`, then `docker compose -f deploy/docker-compose.yml up -d --build`. Then do the manual acceptance run from `docs/reports/phase1.md` with real models, fix what breaks, and merge `phase-1/core` → `main`. After that, start the Phase 2 plan (BUILD_PROMPT §7.1).
 

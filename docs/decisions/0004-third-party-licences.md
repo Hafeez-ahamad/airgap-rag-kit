@@ -1,6 +1,6 @@
 # ADR-0004: Redis server replaced by Valkey; psycopg (LGPL) accepted
 
-Status: **proposed, awaiting owner approval** (2026-10-28)
+Status: accepted (2026-10-28, approved by owner)
 
 ## Redis server → Valkey
 BUILD_PROMPT §3 names Redis. Redis server releases from 7.4 onward are not under a permissive
