@@ -66,7 +66,7 @@ class Conversation(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     messages: Mapped[list[Message]] = relationship(
-        back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at"
+        back_populates="conversation", cascade="all, delete-orphan", order_by="Message.seq"
     )
 
 
@@ -78,6 +78,7 @@ class Message(Base):
         ForeignKey("conversations.id", ondelete="CASCADE"), index=True
     )
     user_id: Mapped[str] = mapped_column(String(128), index=True)
+    seq: Mapped[int] = mapped_column(Integer)  # position within the conversation
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
     mode: Mapped[str | None] = mapped_column(String(16), nullable=True)

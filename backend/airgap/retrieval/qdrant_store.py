@@ -57,22 +57,37 @@ def _chunk(point_id: str, p: dict[str, Any]) -> Chunk:
 
 
 class QdrantStore:
-    def __init__(self, client: QdrantClient, collection: str) -> None:
+    def __init__(
+        self, client: QdrantClient, collection: str, *, payload_indexes: bool = True
+    ) -> None:
+        """``payload_indexes=False`` only for qdrant-client's in-memory mode (tests)."""
         self._client = client
         self._collection = collection
+        self._payload_indexes = payload_indexes
+        self._known_to_exist = False
+
+    def _exists(self) -> bool:
+        if not self._known_to_exist:
+            self._known_to_exist = self._client.collection_exists(self._collection)
+        return self._known_to_exist
 
     def ensure_collection(self, dense_dim: int) -> None:
-        if self._client.collection_exists(self._collection):
+        if self._exists():
             return
         self._client.create_collection(
             self._collection,
             vectors_config={DENSE: qm.VectorParams(size=dense_dim, distance=qm.Distance.COSINE)},
             sparse_vectors_config={SPARSE: qm.SparseVectorParams(modifier=qm.Modifier.IDF)},
         )
-        for key in ("doc_id", "acl_groups"):
+        if self._payload_indexes:
+            for key in ("doc_id", "acl_groups"):
+                self._client.create_payload_index(
+                    self._collection, key, field_schema=qm.PayloadSchemaType.KEYWORD
+                )
             self._client.create_payload_index(
-                self._collection, key, field_schema=qm.PayloadSchemaType.KEYWORD
+                self._collection, "version", field_schema=qm.PayloadSchemaType.INTEGER
             )
+        self._known_to_exist = True
 
     def upsert(self, items: Sequence[EmbeddedChunk]) -> None:
         if not items:
@@ -91,6 +106,8 @@ class QdrantStore:
         self._client.upsert(self._collection, points=points, wait=True)
 
     def delete_document(self, doc_id: str, keep_version: int | None = None) -> None:
+        if not self._exists():
+            return
         selector = _doc_filter(doc_id)
         if keep_version is not None:
             selector.must_not = [
@@ -101,6 +118,8 @@ class QdrantStore:
         )
 
     def count_document_chunks(self, doc_id: str) -> int:
+        if not self._exists():
+            return 0
         return self._client.count(
             self._collection, count_filter=_doc_filter(doc_id), exact=True
         ).count
@@ -110,6 +129,8 @@ class QdrantStore:
     ) -> list[ScoredChunk]:
         if not acl_groups:  # no groups means no access, never "no filter"
             return []
+        if not self._exists():
+            return []  # nothing ingested yet
         result = self._client.query_points(
             self._collection,
             query=query,

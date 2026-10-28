@@ -35,7 +35,7 @@ def sessions(tmp_path: Path) -> Iterator[sessionmaker[Session]]:
 @pytest.fixture
 def store() -> Iterator[QdrantStore]:
     client = QdrantClient(location=":memory:")  # qdrant-client local mode, no server
-    yield QdrantStore(client, "test_chunks")
+    yield QdrantStore(client, "test_chunks", payload_indexes=False)
     client.close()
 
 
