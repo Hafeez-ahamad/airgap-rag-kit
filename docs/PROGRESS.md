@@ -1,12 +1,29 @@
 # PROGRESS
 
-_Last updated: 2026-10-28 (session 1)_
+_Last updated: 2026-10-28 (session 1, end)_
 
 ## Current state
-- **Phase:** 0, pre-Phase 1. Waiting for approval of the plan below (BUILD_PROMPT §12).
-- **Done:** read the spec and the build prompt end to end. Set up the repo skeleton from BUILD_PROMPT "How to use": `docs/spec/AirGap_RAG_Kit_Spec.md`, `docs/BUILD_PROMPT.md`, `CLAUDE.md`. Checked the Phase 1 model candidates against their official model cards. Probed the dev machine.
-- **Not done:** no code. No git repo yet, because `git` is not installed on this machine.
-- **Exact next step:** get answers to the blocking questions (section 6) → install the dev prerequisites → start Phase 1 on branch `phase-1/core`.
+- **Phase:** 1 (Core). Code complete on branch `phase-1/core`, acceptance partly verified. **Not merged to `main`.** See `docs/reports/phase1.md`.
+- **Owner approvals (2026-10-28):** plan approved. Resolutions A1, A2, A5 and A10 as proposed. Kit licence Apache-2.0. Phase 1 models bge-m3 + bge-reranker-v2-m3 + Qwen3-4B-Instruct-2507 Q4_K_M (Ollama). Install git, Docker Desktop (WSL2) and uv. This laptop is the only machine for now.
+- **Done:**
+  - git and uv installed; Python 3.12.16 installed via uv.
+  - Backend complete: ingestion, retrieval, gate, citations, chat flow, API, persistence and migrations, adapters, model service, offline guard.
+  - Compose and nginx config, React UI, CI workflow.
+  - ADRs 0001–0008.
+  - Checks: 75 tests pass and 1 is skipped (Tesseract missing); ruff, mypy, eslint and tsc are clean.
+- **In progress:** the Phase 1 acceptance criterion `docker compose up` from a clean clone.
+- **Blockers:**
+  1. **WSL2 and Docker Desktop are not installed.** `wsl --install` needs admin rights and a reboot, so the owner must run it. Then install Docker Desktop.
+  2. Tesseract is not installed locally, so the real-OCR test is skipped. CI installs it.
+- **Decisions waiting on the owner:**
+  - ADR-0003: replace PyMuPDF (AGPL) with pypdfium2.
+  - ADR-0004: run Valkey (BSD-3) instead of the Redis server (RSAL/SSPL/AGPL). Accept psycopg (LGPL).
+  - Whether to upgrade local Node to 24 LTS, which allows Vite 8 and ESLint 10.
+- **Exact next step:** once Docker works, run `bash deploy/dev/init_secrets.sh`, `bash deploy/dev/fetch_models.sh`, `docker compose -f deploy/docker-compose.yml --profile fetch run --rm ollama-fetch`, then `docker compose -f deploy/docker-compose.yml up -d --build`. Then do the manual acceptance run from `docs/reports/phase1.md` with real models, fix what breaks, and merge `phase-1/core` → `main`. After that, start the Phase 2 plan (BUILD_PROMPT §7.1).
+
+---
+
+_Original session-1 plan follows, kept for reference._
 
 ---
 
