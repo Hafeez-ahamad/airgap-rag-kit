@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Model weights and bundles: never commit
+models/
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.onnx
+bundle/
+*.tar
+*.tar.gz
+*.tar.zst
+
+# Secrets and local config
+.env
+*.env.local
+secrets/
+*.pem
+*.key
+*.crt
+!deploy/nginx/README-tls.md
+
+# Runtime data
+data/
+*.db
+*.sqlite
+
+# Scratch results (committed results live in eval/results and bench/results)
+results-scratch/
+*.log
