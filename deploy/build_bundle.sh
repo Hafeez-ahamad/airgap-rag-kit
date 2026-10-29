@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build an offline bundle on a CONNECTED machine (BUILD_PROMPT §4.1, spec §10).
+# Build an offline bundle on a CONNECTED machine (REQUIREMENTS §4.1, spec §10).
 #
 #   deploy/build_bundle.sh --profile lite --out /media/usb/airgap-bundle --key ~/airgap-signing.pem
 #

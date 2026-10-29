@@ -70,7 +70,7 @@ jobs:
           print("network policy ok")
           EOF
       - run: docker compose -f deploy/docker-compose.yml build api worker proxy
-      # The runtime no-egress test (F21) arrives in Phase 4 (BUILD_PROMPT §8, Phase 4 task 7).
+      # The runtime no-egress test (F21) arrives in Phase 4 (REQUIREMENTS §8, Phase 4 task 7).
 
   gitleaks:
     runs-on: ubuntu-24.04

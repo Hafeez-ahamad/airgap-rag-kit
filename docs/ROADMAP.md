@@ -1,7 +1,7 @@
 # Roadmap
 
-Milestones follow the master prompt §6, mapped onto the existing BUILD_PROMPT phases. "Exit"
-criteria need recorded evidence at the stated validation level (master prompt §10.1). Levels:
+Milestones follow the product requirements §6, mapped onto the existing REQUIREMENTS phases. "Exit"
+criteria need recorded evidence at the stated validation level (product requirements §10.1). Levels:
 **L1** static · **L2** unit · **L3** simulated-profile · **L4** mock-adapter/integration ·
 **L5** lightweight real service · **L6** full-stack acceptance · **L7** physical target device.
 

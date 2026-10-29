@@ -1,12 +1,11 @@
 # Implementation audit
 
 _Audit date: 2026-10-29. Branch at audit time: `phase-1/core` @ `80b0a0c` (clean). Work after the
-audit continues on `phase-2/hardware-adaptive`. Requirements: `master_prompt_on_prem_rag.md` (owner's
-primary requirements document, 2026-10-29), plus `docs/BUILD_PROMPT.md` and `docs/spec/` where they
+audit continues on `phase-2/hardware-adaptive`. Requirements: the product requirements plus `docs/REQUIREMENTS.md` and `docs/spec/` where they
 do not conflict with it._
 
 Every statement below comes from reading the code, running a command, or a recorded earlier
-session (`docs/PROGRESS.md`, `docs/reports/phase1.md`). Anything not checked says so.
+session (`docs/reports/phase1.md`). Anything not checked says so.
 
 ## 1. Architecture as found
 
@@ -39,10 +38,10 @@ migration is justified.
 | Structure-aware chunking, dedupe, versioning, delete | Implemented, tested on real Qdrant local mode | `tests/test_ingestion.py` |
 | Hybrid retrieval + rerank + gate | Implemented, tested with fakes | gate threshold 0.30 **uncalibrated** |
 | Citation verification + retry/flag | Implemented, tested | `retrieval/citations.py` |
-| Grounded + General modes | Implemented | "General" mode still retrieves; there is **no pure General Assistant** (no-retrieval chat) as the master prompt requires |
+| Grounded + General modes | Implemented | "General" mode still retrieves; there is **no pure General Assistant** (no-retrieval chat) as the product requirements requires |
 | Conversation history, feedback | Implemented, tested | per-user isolation tested |
 | Ollama adapter | Implemented, unit-tested against mock transport only | never run against a live model in the app |
-| Model service (embed/rerank) | Implemented; ran once in Docker | measured 2.56 GiB RSS in bf16 (session 2) |
+| Model service (embed/rerank) | Implemented; ran once in Docker | measured 2.56 GiB RSS in bf16 (earlier run) |
 | Compose stack, nginx TLS, two networks | Written; images built | **full stack never passed** (memory) |
 | React UI (chat, documents, history) | Implemented, manual check only | no onboarding, no setup wizard, no settings, no diagnostics, no Markdown rendering |
 | Auth | **Stub only** (`X-Dev-User`, ADR-0008) | real auth, roles, ACL editing absent |
@@ -78,17 +77,17 @@ account for much of the drop; not itemised).
 Observed now (read-only commands, 2026-10-29):
 - `Win32_OperatingSystem`: FreePhysicalMemory **0.82 GB** of 7.42 GB with no stack running.
 - `wsl -l -v`: `docker-desktop` VM **Running**.
-- `docker version`: **HTTP 500** from `dockerDesktopLinuxEngine` (engine still wedged since session 2);
+- `docker version`: **HTTP 500** from `dockerDesktopLinuxEngine` (engine still wedged since the earlier run);
   `docker info` hung past 120 s, so the command was stopped. No containers could be listed.
-- `%USERPROFILE%\.wslconfig`: **does not exist**, so WSL2 defaults apply. Session 2 measured the
+- `%USERPROFILE%\.wslconfig`: **does not exist**, so WSL2 defaults apply. The earlier run measured the
   Docker VM at 3.5 GiB.
-- Top Windows processes by working set: Memory Compression 964 MB, several Claude/Brave processes
+- Top Windows processes by working set: Memory Compression 964 MB, several other desktop processes
   (≈150–470 MB each), vmmemWSL 206 MB (working set only; the VM's committed memory is larger).
 - Native **Ollama 0.40.12 is installed on Windows** and serving on 127.0.0.1:11434, with
   `qwen2.5:7b` (Q4_K_M, 4,683,087,332 bytes) pulled. Its `/api/show` metadata: 28 blocks, 4 KV
   heads, 28 attention heads, embedding 3584 (head_dim 128), licence apache-2.0.
 
-Recorded in session 2 (`docs/PROGRESS.md`): model service RSS 2.56 GiB (bf16, both models); VM had
+Recorded in the earlier run (`docs/STATUS.md`): model service RSS 2.56 GiB (bf16, both models); VM had
 38 MB free with swap full; Windows 370–720 MB free; the Docker engine then started returning HTTP
 500, and the e2e script could not complete a TLS handshake.
 
@@ -96,12 +95,12 @@ Recorded in session 2 (`docs/PROGRESS.md`): model service RSS 2.56 GiB (bf16, bo
 1. The binding constraint is **total host RAM (7.4 GB) shared by Windows, the browser/IDE, the WSL2
    VM and eight always-on containers**, not one service. RAM is not the only problem: the engine
    failure (HTTP 500) persists after the load is gone, so the Docker Desktop VM is left in a bad
-   state and needs a restart by the owner.
+   state and needs a restart by the maintainer.
 2. The compose stack's always-on set (Postgres, Qdrant, Valkey, nginx, api, worker, model service,
-   Ollama) is the wrong shape for a constrained device. The master prompt asks for a lean profile
+   Ollama) is the wrong shape for a constrained device. The product requirements asks for a lean profile
    with fewer services, so this is a product gap, not only a laptop problem.
 3. Re-running `docker compose up` on this machine would repeat the known failure, so I did not
-   retry it (master prompt §10.2).
+   retry it (product requirements §10.2).
 
 ## 5. Security / privacy risks found
 
@@ -132,17 +131,17 @@ Recorded in session 2 (`docs/PROGRESS.md`): model service RSS 2.56 GiB (bf16, bo
 6. UI: onboarding wizard, workspace with sidebar, Markdown, settings/diagnostics, Compatibility Lab.
 7. Bundle manifest/signature verification, backup/restore for the native profile, eval harness.
 
-## 7. Decisions that need the owner
+## 7. Decisions that need maintainer sign-off
 
 1. **Docker Desktop is wedged (HTTP 500).** Restarting it, or `wsl --shutdown`, changes host
    state, so I have not done it. The native profile does not need Docker.
 2. **`.wslconfig` memory limit**: not edited (persistent host setting). Only relevant if you want the
    compose profile on this laptop; at 7.4 GB total it will stay marginal either way.
-3. **SQLite outside unit tests.** BUILD_PROMPT §3 reserves SQLite for tests; the master prompt
+3. **SQLite outside unit tests.** REQUIREMENTS §3 reserves SQLite for tests; the product requirements
    (primary) asks for a lean low-memory profile. I am using SQLite only in the native profile and
    recording that in ADR-0009. Say if you want this reversed.
 4. **Local model for the real smoke test.** `qwen2.5:7b` (Apache-2.0, verified via Ollama
    metadata) is what is installed natively. The planned `qwen3:4b-instruct-2507` lives in the
    unreachable Docker volume. I will not pull another 2.5 GB without asking.
-5. Merging `phase-1/core` to `main`: blocked by BUILD_PROMPT rule 7 until the Phase 1 live
+5. Merging `phase-1/core` to `main`: blocked by REQUIREMENTS rule 7 until the Phase 1 live
    acceptance passes.

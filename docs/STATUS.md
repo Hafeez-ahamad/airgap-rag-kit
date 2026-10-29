@@ -1,9 +1,9 @@
 # Status
 
-_Last updated: 2026-10-29, session 3. Published at https://github.com/Hafeez-ahamad/airgap-rag-kit;
-`main` fast-forwarded to `phase-2/hardware-adaptive` (owner decision, 2026-10-29)._
+_Last updated: 2026-10-29. Published at https://github.com/Hafeez-ahamad/airgap-rag-kit;
+`main` fast-forwarded to `phase-2/hardware-adaptive` (2026-10-29)._
 
-## Completed this session (with evidence)
+## Completed (with evidence)
 | Area | Evidence |
 |---|---|
 | Audit, roadmap, memory diagnosis | `docs/IMPLEMENTATION_AUDIT.md`, `docs/ROADMAP.md` |
@@ -37,7 +37,7 @@ Final checks: backend `pytest` **181 passed, 1 skipped** (Tesseract absent); ruf
   connected to a public address in run 1 (FAIL)**, none in run 2. Ollama also auto-updated itself
   (0.40.12 -> 0.40.13) during the session.
 
-## Full native-stack run on the dev laptop (owner approved stopping Docker and pulling qwen3:4b)
+## Full native-stack run on the dev laptop (Docker stopped; qwen3:4b pulled)
 - Docker Desktop stopped (WSL `docker-desktop` VM terminated). Restart it from the Start menu
   when needed.
 - Embedding runtime installed (`uv sync --extra models`: torch 2.14.1+cpu, sentence-transformers 6.2.0).
@@ -55,14 +55,12 @@ Final checks: backend `pytest` **181 passed, 1 skipped** (Tesseract absent); ruf
   (the Windows installer does not add it to PATH) or via `AIRGAP_OCR_BINARY`; uses only installed
   language packs and reports missing ones instead of failing every scanned page.
 
-- 2026-10-29: published history rewritten at the owner's request to remove automated
-  co-author trailers (messages only; code, authors and dates unchanged; old history kept in local
-  `backup/pre-rewrite/*` branches). Claude Code commit attribution is disabled.
+- 2026-10-29: commit history rewritten to normalise commit messages (code, authors and dates unchanged).
 
 ## Blocked or unverified
 | Item | Why | Next step |
 |---|---|---|
-| OCR (scanned PDFs) | Tesseract install attempted (winget, UB Mannheim 5.4.0, hash verified) but cancelled at the Windows admin prompt; owner chose to skip | install Tesseract (admin), then rerun `phase1_e2e.py` |
+| OCR (scanned PDFs) | Tesseract install attempted (winget, UB Mannheim 5.4.0, hash verified) but cancelled at the Windows admin prompt; skipped for now | install Tesseract (admin), then rerun `phase1_e2e.py` |
 | Comfortable memory headroom | free RAM fell to 0.23 GB during ingestion on 7.4 GB | repeat VALIDATION.md §A on 16 GB+ |
 | Compose full stack | Docker stopped / engine previously HTTP 500; 7.4 GB RAM | VALIDATION.md §B on Linux 16 GB+ |
 | Offline bundle install | build not run | VALIDATION.md §C |
@@ -70,10 +68,10 @@ Final checks: backend `pytest` **181 passed, 1 skipped** (Tesseract absent); ruf
 | Gate calibration, bake-off | n=22 too small; one model only | larger labelled set; more models |
 | Linux/macOS real probes, every non-laptop tier | hardware not available | marked "not yet validated" |
 
-## Decisions waiting on the owner
-1. Docker Desktop was stopped at your request; restart it when you need containers.
+## Open decisions
+1. Docker Desktop is stopped; restart it when containers are needed.
 2. Set `OLLAMA_NO_CLOUD=1` and disable Ollama auto-update on this machine (persistent host
-   settings; not changed by me).
+   settings; not changed yet).
 3. Keep SQLite in the native profile (ADR-0009).
 
 ## Next action

@@ -1,6 +1,6 @@
 # ADR-0008: Phase 1 dev-only user stub
 
-Status: accepted (2026-10-28, approved by owner as resolution A5)
+Status: accepted (2026-10-28, approved by the maintainer as resolution A5)
 
 Real authentication arrives in Phase 3. Phase 1 still needs a user identity for per-user
 history and feedback.

@@ -7,7 +7,7 @@ tests, not by evidence. Raw results live in `eval/results/`.
 | Target | Profile | What ran | Level | Status |
 |---|---|---|---|---|
 | Windows 11, Ryzen 7 4800H, 7.4 GB RAM, RTX 3050 Laptop 4 GiB (driver 572.47), Ollama 0.40.12/0.40.13 | native | real scan; **real setup install** (qwen3:4b pulled, 4.59 GB retrieval models SHA-verified, inference check); Phase 1 e2e acceptance 21/23; live eval; General Assistant in the UI; no-egress observation | **L6 (full-stack acceptance, native profile)** | **physically validated, with gaps**: OCR not installed (2 e2e checks fail); memory tight (paging) |
-| same laptop | compose | images built (session 2); stack ran out of memory | L6 attempted | **failed** (memory, Docker engine HTTP 500) |
+| same laptop | compose | images built (earlier run); stack ran out of memory | L6 attempted | **failed** (memory, Docker engine HTTP 500) |
 | Windows/Linux, 16 GB RAM, CPU only | native | simulated profile `cpu-only-16` | L3 | not yet validated |
 | Linux, 32 GB RAM, 12 GB NVIDIA | native/compose | simulated profile `balanced-32-12` | L3 | not yet validated |
 | Linux, 64 GB RAM, 24 GB NVIDIA | compose | simulated profile `high-64-24` | L3 | not yet validated |

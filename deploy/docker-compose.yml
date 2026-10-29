@@ -1,6 +1,6 @@
 # AirGap RAG Kit: development / single-host stack.
 #
-# Networks (BUILD_PROMPT §3.1):
+# Networks (REQUIREMENTS §3.1):
 #   backend: internal: true, so no route off the host. Every service except the proxy is here only.
 #   edge:    only the proxy publishes ports to the LAN. The proxy joins both networks.
 # Also block outbound traffic on the host firewall (docs/runbook.md, Phase 4).

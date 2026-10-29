@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-28)
 
-BUILD_PROMPT §3 asks for mypy or pyright. **Decision: mypy with `strict = true`**, configured in
+REQUIREMENTS §3 asks for mypy or pyright. **Decision: mypy with `strict = true`**, configured in
 `backend/pyproject.toml`.
 
 - It runs from the uv lockfile with no Node runtime in the Python CI job.

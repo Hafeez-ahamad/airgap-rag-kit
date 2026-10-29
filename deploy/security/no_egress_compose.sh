@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# No-egress test for the COMPOSE profile (spec F21, BUILD_PROMPT Phase 4 task 7).
+# No-egress test for the COMPOSE profile (spec F21, REQUIREMENTS Phase 4 task 7).
 # From every running kit container, try DNS, HTTPS to a public IP, and raw TCP. Any success fails.
 #
 #   deploy/security/no_egress_compose.sh            # test the running stack

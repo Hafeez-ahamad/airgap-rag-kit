@@ -23,7 +23,7 @@ class Licence(BaseModel):
 
     @property
     def allowed_by_default(self) -> bool:
-        """Licence gate (BUILD_PROMPT §4.5): permissive and commercial use allowed."""
+        """Licence gate (REQUIREMENTS §4.5): permissive and commercial use allowed."""
         return self.id in PERMISSIVE_LICENCES and self.commercial_use is True
 
 

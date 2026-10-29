@@ -1,4 +1,4 @@
-"""KV-cache maths (spec §4.3, BUILD_PROMPT §5). Predictions only, never guarantees.
+"""KV-cache maths (spec §4.3, REQUIREMENTS §5). Predictions only, never guarantees.
 
 Per full-attention layer and token: 2 (K and V) x kv_heads x head_dim x bytes_per_element.
 Sliding-window layers cache at most ``window`` tokens, so for hybrid models the cost is not

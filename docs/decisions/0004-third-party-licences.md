@@ -1,9 +1,9 @@
 # ADR-0004: Redis server replaced by Valkey; psycopg (LGPL) accepted
 
-Status: accepted (2026-10-28, approved by owner)
+Status: accepted (2026-10-28, approved by the maintainer)
 
 ## Redis server → Valkey
-BUILD_PROMPT §3 names Redis. Redis server releases from 7.4 onward are not under a permissive
+REQUIREMENTS §3 names Redis. Redis server releases from 7.4 onward are not under a permissive
 licence (RSALv2 / SSPLv1, with AGPLv3 added as an option in Redis 8). Shipping the server image in
 the offline bundle would bring those terms with it. **Valkey** is the Linux Foundation fork of
 Redis 7.2 under BSD-3-Clause. It uses the same protocol and works unchanged with the redis-py

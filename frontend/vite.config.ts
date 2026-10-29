@@ -2,7 +2,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// All assets are bundled locally: no CDN fonts or scripts (BUILD_PROMPT rule 5).
+// All assets are bundled locally: no CDN fonts or scripts (REQUIREMENTS rule 5).
 export default defineConfig({
   plugins: [react()],
   build: { sourcemap: false, assetsInlineLimit: 0 },
