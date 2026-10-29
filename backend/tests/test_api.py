@@ -57,15 +57,18 @@ def test_health_is_public(kit: Kit) -> None:
 def test_every_other_route_requires_auth_when_stub_is_off(kit: Kit) -> None:
     app = create_app(_services(kit, dev_auth=False))
     client = TestClient(app)
+    # Intentionally public (ADR-0010). Anything else must answer 401 without a session.
+    public = {"/health", "/auth/status", "/auth/login", "/auth/bootstrap"}
     checked = 0
     for path, ops in app.openapi()["paths"].items():
-        if path == "/health":
+        if path in public:
             continue
         for method in ops:
-            resp = client.request(method.upper(), path.replace("{doc_id}", "x"))
+            url = path.replace("{doc_id}", "x").replace("{user_id}", "x")
+            resp = client.request(method.upper(), url)
             assert resp.status_code == 401, f"{method} {path} -> {resp.status_code}"
             checked += 1
-    assert checked >= 7
+    assert checked >= 25
 
 
 def test_upload_folder_reports_per_file_outcomes(client: TestClient, kit: Kit) -> None:

@@ -29,6 +29,13 @@ GENERAL_SYSTEM = (
     "Be concise. Answer in the language of the question."
 )
 
+ASSISTANT_SYSTEM = (
+    "You are a helpful assistant running fully on the user's own computer. You have no access "
+    "to the user's documents, files or the internet in this mode, so never claim to have read "
+    "them and never write citations. If a question needs the user's documents, suggest the "
+    "Document Assistant. Format answers in Markdown. Answer in the language of the question."
+)
+
 REWRITE_SYSTEM = (
     "Rewrite the user's last message into one standalone question that can be understood "
     "without the conversation. Resolve pronouns and references such as 'it', 'that one' or "
@@ -63,6 +70,11 @@ def answer_messages(
     body = f"{format_context(chunks)}\n\nQuestion: {question}" if chunks else question
     recent = [m for m in history if m.role is not Role.SYSTEM][-4:]
     return [ChatMessage(Role.SYSTEM, system), *recent, ChatMessage(Role.USER, body)]
+
+
+def assistant_messages(question: str, history: Sequence[ChatMessage]) -> list[ChatMessage]:
+    recent = [m for m in history if m.role is not Role.SYSTEM][-8:]
+    return [ChatMessage(Role.SYSTEM, ASSISTANT_SYSTEM), *recent, ChatMessage(Role.USER, question)]
 
 
 def retry_message(problems: Sequence[str]) -> ChatMessage:

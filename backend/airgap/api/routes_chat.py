@@ -11,12 +11,16 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 
-from airgap.api.deps import ServicesDep, UserDep
+from airgap.api.deps import ServicesDep, User, UserDep
+from airgap.api.services import Services
+from airgap.auth.limits import LimitExceeded
 from airgap.chat.history import NotFound
 from airgap.chat.orchestrator import AnswerResult
 from airgap.chat.routing import UnsupportedMode
 from airgap.core.types import Mode
+from airgap.llm_backends.ollama import LLMUnavailable
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
@@ -73,16 +77,42 @@ def _final_payload(result: AnswerResult, conversation_id: str, message_id: str) 
     }
 
 
+def _audit_answer(services: Services, user: User, result: AnswerResult) -> None:
+    if services.audit is None:
+        return
+    services.audit.record(
+        user.username or user.id,
+        "chat.refused" if result.refused else "chat.answer",
+        detail={
+            **services.audit.question_detail(result.question),
+            "mode": result.mode.value,
+            "model": result.model_id,
+            "flagged": result.flagged,
+            "best_score": result.best_score,
+            "documents": sorted({c.doc_id for c in result.context}),
+        },
+    )
+
+
 @router.post("/chat")
 def chat(req: ChatRequest, services: ServicesDep, user: UserDep) -> StreamingResponse:
     if req.mode is Mode.CODING:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "coding mode is not available yet")
+    try:
+        release = services.chat_limiter.take(user.id)
+    except LimitExceeded as exc:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            str(exc),
+            headers={"Retry-After": str(exc.retry_after_s)},
+        ) from exc
     try:
         history = services.chat.history(user.id, req.conversation_id)
         conversation_id = services.chat.ensure_conversation(
             user.id, req.conversation_id, req.question
         )
     except NotFound as exc:
+        release()
         raise HTTPException(status.HTTP_404_NOT_FOUND, "conversation not found") from exc
 
     def stream() -> Iterator[str]:
@@ -91,19 +121,33 @@ def chat(req: ChatRequest, services: ServicesDep, user: UserDep) -> StreamingRes
                 if event["type"] == "final":
                     result: AnswerResult = event["result"]
                     turn = services.chat.record(user.id, conversation_id, result)
+                    _audit_answer(services, user, result)
                     yield _sse(_final_payload(result, conversation_id, turn.message_id))
                 else:
                     yield _sse(event)
         except UnsupportedMode as exc:
             yield _sse({"type": "error", "message": str(exc)})
+        except LLMUnavailable:
+            log.exception("llm runtime unavailable")
+            yield _sse(
+                {
+                    "type": "error",
+                    "code": "llm_unavailable",
+                    "message": "The local model is not responding. Check that the runtime "
+                    "is running (Settings > Diagnostics), then try again.",
+                }
+            )
         except Exception:
             log.exception("chat failed")
             yield _sse({"type": "error", "message": "the assistant is unavailable, try again"})
+        finally:
+            release()
 
     return StreamingResponse(
         stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+        background=BackgroundTask(release),  # also released if the stream never starts
     )
 
 

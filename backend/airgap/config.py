@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 from urllib.parse import quote
 
 from pydantic import Field, model_validator
@@ -14,7 +15,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AIRGAP_", extra="ignore")
 
     env: str = "development"  # "production" disables every dev shortcut
-    dev_auth: bool = False  # Phase 1 stub user; replaced by real auth in Phase 3
+    # native: one process, SQLite + embedded Qdrant + in-process worker/models (ADR-0009).
+    # compose: the multi-container stack (Postgres, Qdrant server, Valkey, model service).
+    profile: Literal["native", "compose"] = "compose"
+    data_dir: Path = Path("./data")
+    models_dir: Path = Path("../models")
+    dev_auth: bool = False  # Phase 1 stub user (ADR-0008); real auth is ADR-0010
+    cookie_secure: bool = True  # session cookies only over HTTPS (localhost counts as secure)
+    audit_store_questions: bool = False  # audit keeps a digest of questions unless enabled
 
     # May contain "{password}", filled from database_password_file (a compose secret).
     database_url: str = "sqlite:///./airgap-dev.db"

@@ -154,7 +154,7 @@ def test_windows_probe_uses_injected_os_calls_and_checks_wsl(tmp_path: Path) -> 
     wsl = report.runtime("wsl")
     assert wsl is not None and wsl.installed
     commands = [c[0] for c in run.calls]
-    assert set(commands) <= {"nvidia-smi", "ollama", "docker", "wsl"}
+    assert set(commands) <= {"nvidia-smi", "ollama", "docker", "wsl", "tesseract"}
 
 
 def test_wsl_not_checked_off_windows(tmp_path: Path) -> None:

@@ -93,6 +93,9 @@ class Orchestrator:
         acl_groups: Sequence[str],
     ) -> Iterator[dict[str, Any]]:
         role = answer_role(mode)  # raises UnsupportedMode for v2 modes
+        if mode is Mode.ASSISTANT:
+            yield from self._assistant(question, history)
+            return
         query = self.standalone_query(question, history)
         yield {"type": "meta", "query": query, "rewritten": query != question}
 
@@ -146,6 +149,22 @@ class Orchestrator:
                 retrieval.gate.best_score,
                 context,
                 verification,
+            ),
+        }
+
+    def _assistant(self, question: str, history: Sequence[ChatMessage]) -> Iterator[dict[str, Any]]:
+        """General Assistant: no retrieval, no citations, so nothing is presented as grounded."""
+        yield {"type": "meta", "query": question, "rewritten": False}
+        backend = self._router.backend_for(PipelineRole.GENERAL_CHAT)
+        parts: list[str] = []
+        for delta in backend.stream(prompts.assistant_messages(question, history), self._options):
+            parts.append(delta)
+            yield {"type": "token", "text": delta}
+        answer = "".join(parts)
+        yield {
+            "type": "final",
+            "result": AnswerResult(
+                Mode.ASSISTANT, question, question, answer, False, False, backend.model_id, None
             ),
         }
 

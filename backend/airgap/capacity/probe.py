@@ -330,6 +330,15 @@ class RealHardwareProvider:
                     detail=None if ok else "Docker CLI found but the engine did not answer",
                 )
             )
+        tess = env.run(["tesseract", "--version"], 10)
+        tess_version = re.search(r"(\d+\.\d+(?:\.\d+)?)", tess.stdout) if tess else None
+        out.append(
+            RuntimeInfo(
+                name="tesseract",
+                installed=tess is not None and tess.returncode == 0,
+                version=tess_version.group(1) if tess_version else None,
+            )
+        )
         if os_name == "windows":
             wsl = env.run(["wsl", "--status"], 10)
             out.append(

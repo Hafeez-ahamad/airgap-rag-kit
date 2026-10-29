@@ -32,6 +32,14 @@ class OllamaBackend:
     def model_id(self) -> str:
         return f"ollama:{self._model}"
 
+    @property
+    def model_tag(self) -> str:
+        return self._model
+
+    def set_model(self, tag: str) -> None:
+        """Switch the active model (after setup verified it with a real inference check)."""
+        self._model = tag
+
     def _body(
         self, messages: Sequence[ChatMessage], options: GenerationOptions, stream: bool
     ) -> dict[str, Any]:

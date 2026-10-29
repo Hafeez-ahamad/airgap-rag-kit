@@ -78,6 +78,10 @@ class VectorStore(Protocol):
 
     def count_document_chunks(self, doc_id: str) -> int: ...
 
+    def set_document_acl(self, doc_id: str, acl_groups: Sequence[str]) -> None:
+        """Replace the ACL groups on every chunk of a document (dense and sparse share it)."""
+        ...
+
 
 class OCREngine(Protocol):
     def available(self) -> bool: ...

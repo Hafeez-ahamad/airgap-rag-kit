@@ -110,3 +110,46 @@ class Feedback(Base):
     mode: Mapped[str | None] = mapped_column(String(16), nullable=True)
     retrieved_chunk_ids: Mapped[list[Any]] = mapped_column(default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class User(Base):
+    """Local account (Phase 3 auth). Passwords are Argon2 hashes, never stored in clear."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    username: Mapped[str] = mapped_column(String(64), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(256))
+    role: Mapped[str] = mapped_column(String(16))  # admin | editor | viewer
+    groups: Mapped[list[Any]] = mapped_column(default=list)
+    disabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    failed_logins: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AuthSession(Base):
+    """Server-side session. ``id`` is the SHA-256 of the cookie token (the token is not stored)."""
+
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    csrf_token: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AuditEvent(Base):
+    """Append-only audit trail. Application code only ever inserts (no update/delete paths);
+    on Postgres the app role is additionally denied UPDATE/DELETE (see migration 0002)."""
+
+    __tablename__ = "audit_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    actor: Mapped[str] = mapped_column(String(128), index=True)
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    target: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    outcome: Mapped[str] = mapped_column(String(16))  # ok | denied | failed
+    detail: Mapped[dict[str, Any]] = mapped_column(default=dict)

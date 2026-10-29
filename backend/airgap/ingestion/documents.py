@@ -56,10 +56,23 @@ class DocumentService:
         self._sessions, self._blobs, self._queue = sessions, blobs, queue
         self._store, self._clock, self._limits = store, clock, limits
 
-    def upload(self, files: Sequence[tuple[str, bytes]], user_id: str) -> list[UploadResult]:
-        return [self._upload_one(name, data, user_id) for name, data in files]
+    def upload(
+        self,
+        files: Sequence[tuple[str, bytes]],
+        user_id: str,
+        acl_groups: Sequence[str] = (DEFAULT_GROUP,),
+        visible_groups: Sequence[str] | None = None,
+    ) -> list[UploadResult]:
+        """``acl_groups``: groups of new documents. ``visible_groups``: what the uploader may
+        see. Dedupe and versioning only ever touch documents the uploader can see, so an upload
+        can neither overwrite nor reveal a document in another group."""
+        visible = set(visible_groups if visible_groups is not None else acl_groups)
+        groups = sorted(set(acl_groups))
+        return [self._upload_one(name, data, user_id, groups, visible) for name, data in files]
 
-    def _upload_one(self, filename: str, data: bytes, user_id: str) -> UploadResult:
+    def _upload_one(
+        self, filename: str, data: bytes, user_id: str, groups: list[str], visible: set[str]
+    ) -> UploadResult:
         try:
             upload = validate_upload(
                 filename,
@@ -73,6 +86,12 @@ class DocumentService:
         now = self._clock.now()
         with self._sessions.begin() as db:
             existing = db.scalar(select(Document).where(Document.name == upload.name))
+            if existing is not None and not set(existing.acl_groups) & visible:
+                return UploadResult(
+                    upload.name,
+                    Outcome.REJECTED,
+                    message="this name is not available; rename the file and upload again",
+                )
             if existing is not None:
                 if existing.sha256 == sha:
                     return UploadResult(
@@ -81,10 +100,17 @@ class DocumentService:
                 doc, outcome = existing, Outcome.NEW_VERSION
                 doc.current_version += 1
             else:
-                twin = db.scalar(
-                    select(Document).where(
-                        Document.sha256 == sha, Document.status != DocStatus.FAILED.value
-                    )
+                twin = next(
+                    (
+                        d
+                        for d in db.scalars(
+                            select(Document).where(
+                                Document.sha256 == sha, Document.status != DocStatus.FAILED.value
+                            )
+                        )
+                        if set(d.acl_groups) & visible
+                    ),
+                    None,
                 )
                 if twin is not None:
                     return UploadResult(
@@ -99,7 +125,7 @@ class DocumentService:
                     name=upload.name,
                     file_type=upload.file_type.value,
                     current_version=1,
-                    acl_groups=[DEFAULT_GROUP],
+                    acl_groups=groups,
                     uploaded_by=user_id,
                     created_at=now,
                 )
@@ -142,6 +168,17 @@ class DocumentService:
                 return None
             version = next(v for v in doc.versions if v.version == doc.current_version)
             return doc, self._blobs.get(version.blob_key)
+
+    def set_acl(self, doc_id: str, groups: Sequence[str]) -> Document | None:
+        """Change a document's groups in the database AND in every indexed chunk."""
+        with self._sessions.begin() as db:
+            doc = db.get(Document, doc_id)
+            if doc is None:
+                return None
+            doc.acl_groups = sorted(set(groups))
+            doc.updated_at = self._clock.now()
+            self._store.set_document_acl(doc_id, doc.acl_groups)
+            return doc
 
     def delete(self, doc_id: str) -> bool:
         """Remove the document, every version's file, and all dense + sparse entries."""

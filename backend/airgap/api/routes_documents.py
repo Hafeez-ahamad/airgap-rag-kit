@@ -1,4 +1,8 @@
-"""POST/GET/DELETE /documents and GET /documents/{id}/file."""
+"""POST/GET/DELETE /documents, GET /documents/{id}/file, PATCH /documents/{id}/acl.
+
+ACLs: a user sees a document only if they share a group with it; editors may only assign
+groups they belong to (admins any). The same filter is applied in retrieval (Qdrant).
+"""
 
 from __future__ import annotations
 
@@ -8,9 +12,11 @@ from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from airgap.api.deps import ServicesDep, UserDep
+from airgap.api.deps import EditorDep, ServicesDep, User, UserDep
+from airgap.api.services import Services
+from airgap.auth.service import UserRole, ValidationFailed, validate_groups
 from airgap.ingestion.documents import Outcome
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -49,7 +55,32 @@ class DocumentOut(BaseModel):
     size_bytes: int
     chunk_count: int
     ocr_pages: list[int]
+    acl_groups: list[str]
     updated_at: datetime
+
+
+class AclPatch(BaseModel):
+    groups: list[str] = Field(min_length=1, max_length=32)
+
+
+def _allowed_groups(user: User, requested: list[str] | None) -> list[str]:
+    """Groups an upload/ACL change may use: the user's own unless admin."""
+    if not requested:
+        return [user.groups[0]] if user.groups else []
+    try:
+        groups = validate_groups(requested)
+    except ValidationFailed as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    if not user.at_least(UserRole.ADMIN) and not set(groups) <= set(user.groups):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "you can only assign your own groups")
+    return groups
+
+
+def _audit(
+    services: Services, user: User, action: str, target: str | None, **detail: object
+) -> None:
+    if services.audit is not None:
+        services.audit.record(user.username or user.id, action, target=target, detail=dict(detail))
 
 
 async def _read_limited(upload: UploadFile, limit: int) -> bytes:
@@ -61,10 +92,13 @@ async def _read_limited(upload: UploadFile, limit: int) -> bytes:
 @router.post("", response_model=UploadResponse)
 async def upload_documents(
     services: ServicesDep,
-    user: UserDep,
+    user: EditorDep,
     files: Annotated[list[UploadFile], File(description="One or more files")],
     paths: Annotated[
         list[str] | None, Form(description="Optional relative paths (folder upload), same order")
+    ] = None,
+    groups: Annotated[
+        list[str] | None, Form(description="ACL groups for new documents (default: your first)")
     ] = None,
 ) -> UploadResponse:
     settings = services.settings
@@ -79,9 +113,18 @@ async def upload_documents(
     for i, upload in enumerate(files):
         name = paths[i] if paths else (upload.filename or "")
         batch.append((name, await _read_limited(upload, settings.max_upload_bytes)))
-    results = services.documents.upload(batch, user.id)
+    acl = _allowed_groups(user, groups)
+    results = services.documents.upload(batch, user.id, acl, user.groups)
     items = [UploadItem(**asdict(r)) for r in results]
     rejected = sum(r.outcome is Outcome.REJECTED for r in results)
+    _audit(
+        services,
+        user,
+        "document.upload",
+        None,
+        groups=acl,
+        outcomes=[f"{r.outcome.value}:{r.doc_id}" for r in results],
+    )
     return UploadResponse(results=items, accepted=len(items) - rejected, rejected=rejected)
 
 
@@ -98,6 +141,7 @@ def list_documents(services: ServicesDep, user: UserDep) -> list[DocumentOut]:
             size_bytes=d.size_bytes,
             chunk_count=d.chunk_count,
             ocr_pages=list(d.ocr_pages),
+            acl_groups=list(d.acl_groups),
             updated_at=d.updated_at,
         )
         for d in services.documents.list()
@@ -124,12 +168,26 @@ def download_document(doc_id: str, services: ServicesDep, user: UserDep) -> Resp
 
 
 @router.delete("/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_document(doc_id: str, services: ServicesDep, user: UserDep) -> Response:
+def delete_document(doc_id: str, services: ServicesDep, user: EditorDep) -> Response:
     doc = services.documents.get(doc_id)
     if doc is None or not set(doc.acl_groups) & set(user.groups):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
     services.documents.delete(doc_id)
+    _audit(services, user, "document.delete", doc_id, name=doc.name)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/{doc_id}/acl", response_model=list[str])
+def set_acl(doc_id: str, body: AclPatch, services: ServicesDep, user: EditorDep) -> list[str]:
+    doc = services.documents.get(doc_id)
+    if doc is None or not set(doc.acl_groups) & set(user.groups):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
+    groups = _allowed_groups(user, body.groups)
+    updated = services.documents.set_acl(doc_id, groups)
+    if updated is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
+    _audit(services, user, "document.acl", doc_id, before=list(doc.acl_groups), after=groups)
+    return list(updated.acl_groups)
 
 
 def _quote(name: str) -> str:

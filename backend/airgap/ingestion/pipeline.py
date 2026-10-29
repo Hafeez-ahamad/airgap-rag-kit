@@ -89,6 +89,11 @@ class IngestionPipeline:
             self._index(chunks)
             # New version is in place; now remove every other version's chunks.
             self._store.delete_document(doc_id, keep_version=version)
+            # The ACL may have changed while this job ran: chunks carry the current groups.
+            with self._sessions() as db:
+                current = db.get(Document, doc_id)
+                if current is not None and tuple(current.acl_groups) != meta.acl_groups:
+                    self._store.set_document_acl(doc_id, list(current.acl_groups))
             self._set_status(doc_id, DocStatus.READY, chunk_count=len(chunks))
         except ParseError as exc:
             self._set_status(doc_id, DocStatus.FAILED, str(exc))

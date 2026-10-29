@@ -117,6 +117,16 @@ class QdrantStore:
             self._collection, points_selector=qm.FilterSelector(filter=selector), wait=True
         )
 
+    def set_document_acl(self, doc_id: str, acl_groups: Sequence[str]) -> None:
+        if not self._exists():
+            return
+        self._client.set_payload(
+            self._collection,
+            payload={"acl_groups": list(acl_groups)},
+            points=qm.FilterSelector(filter=_doc_filter(doc_id)),
+            wait=True,
+        )
+
     def count_document_chunks(self, doc_id: str) -> int:
         if not self._exists():
             return 0

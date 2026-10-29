@@ -25,7 +25,7 @@ class UnsupportedMode(ValueError):
 def answer_role(mode: Mode) -> PipelineRole:
     if mode is Mode.GROUNDED:
         return PipelineRole.GROUNDED_ANSWER
-    if mode is Mode.GENERAL:
+    if mode in (Mode.GENERAL, Mode.ASSISTANT):
         return PipelineRole.GENERAL_CHAT
     raise UnsupportedMode(f"mode '{mode.value}' is not available in this version")
 

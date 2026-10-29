@@ -60,7 +60,11 @@ class DocStatus(StrEnum):
 
 
 class Mode(StrEnum):
+    # General Assistant: plain local-LLM chat. No retrieval, so no document grounding is implied.
+    ASSISTANT = "assistant"
+    # Document Assistant, strict: answers only from documents, cite or refuse.
     GROUNDED = "grounded"
+    # Document Assistant, relaxed: documents when relevant, other content labelled.
     GENERAL = "general"
     # v2: text-only coding assistant. Accepted by the enum so routing has a hook,
     # rejected by the API until implemented.
