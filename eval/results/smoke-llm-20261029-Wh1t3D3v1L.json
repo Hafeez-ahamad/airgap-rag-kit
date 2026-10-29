@@ -1,0 +1,30 @@
+{
+ "level": "L5 lightweight real-service smoke (one sample, not a benchmark)",
+ "at": "2026-10-29T11:36:49.464633+00:00",
+ "host": "Windows-11",
+ "model": "qwen2.5:7b",
+ "num_ctx": 2048,
+ "checks": {
+  "runtime_reachable": true,
+  "model_listed": true,
+  "inference_check": {
+   "ok": true,
+   "seconds": 74.2,
+   "reply": "Ready",
+   "error": null
+  },
+  "general_assistant": {
+   "ok": true,
+   "question": "In two sentences, what is retrieval-augmented generation?",
+   "answer": "Retrieval-Augmented Generation (RAG) is a technique where a language model retrieves relevant information from an external knowledge source, such as a document database, before generating a response. This approach enhances the model's ability to provide accurate and contextually relevant outputs by combining its generative capabilities with external knowledge.",
+   "stream_chunks": 62,
+   "seconds_to_first_chunk": 1.5,
+   "seconds_total": 26.8,
+   "citations": []
+  },
+  "unloaded": true
+ },
+ "gpu_before": "NVIDIA GeForce RTX 3050 Laptop GPU, 0 MiB, 4096 MiB",
+ "gpu_loaded": "NVIDIA GeForce RTX 3050 Laptop GPU, 2239 MiB, 4096 MiB",
+ "passed": true
+}
