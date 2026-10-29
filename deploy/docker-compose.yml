@@ -123,6 +123,12 @@ services:
       - "${RERANKER_DIR:-../models/bge-reranker-v2-m3}:/models/reranker:ro"
     read_only: true
     tmpfs: ["/tmp"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,json,sys; r=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=10)); sys.exit(0 if r['status']=='ok' else 1)"]
+      interval: 15s
+      timeout: 20s
+      start_period: 300s  # loading two models from a bind mount on a small laptop took minutes
+      retries: 10
 
   ollama:
     <<: *hardening
@@ -135,12 +141,16 @@ services:
       OLLAMA_CONTEXT_LENGTH: ${AIRGAP_LLM_NUM_CTX:-4096}
       OLLAMA_KV_CACHE_TYPE: ${OLLAMA_KV_CACHE_TYPE:-f16}
       OLLAMA_NOPRUNE: "1"
+      # Ollama >= 0.40 has cloud features and fetches model recommendations; switch the cloud
+      # off explicitly (the internal network also blocks it; the no-egress test must prove that).
+      OLLAMA_NO_CLOUD: "1"
     networks: [backend]
     volumes: ["ollama:/root/.ollama"]
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 15s
-      timeout: 5s
+      timeout: 20s        # `docker exec` alone can take >5 s on a memory-starved host
+      start_period: 120s  # first CUDA library load (GPU discovery) took ~18 s warm, longer cold
       retries: 10
 
   qdrant:
