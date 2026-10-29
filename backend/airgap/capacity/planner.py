@@ -383,12 +383,14 @@ def evaluate_model(ctx: _Context, budget: MemoryBudget, model: LLMEntry) -> Mode
     if budget.llm_ram_budget_now_bytes is not None:
         ev.fits_now = ram_need <= budget.llm_ram_budget_now_bytes
         if not ev.fits_now:
+            total_need = ram_need + budget.services_bytes + budget.retrieval_bytes
             ev.warnings.append(
                 Note(
                     code=Code.NOT_ENOUGH_FREE_NOW,
                     message=(
-                        f"Only {budget.llm_ram_budget_now_bytes / GIB:.1f} GiB is free right now; "
-                        "close other applications before starting this model."
+                        f"Needs about {total_need / GIB:.1f} GiB of RAM for the app and model; "
+                        f"{(r.ram_available_bytes or 0) / GIB:.1f} GiB is free right now. "
+                        "Close other applications before starting this model."
                     ),
                 )
             )

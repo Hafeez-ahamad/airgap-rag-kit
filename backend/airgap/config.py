@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     tier_threshold_offset: float = 0.0
 
     @model_validator(mode="after")
+    def _native_uses_local_services(self) -> Settings:
+        """The compose defaults point at container names; the native profile talks to the host."""
+        if self.profile == "native" and self.ollama_url == "http://ollama:11434":
+            self.ollama_url = "http://127.0.0.1:11434"
+        return self
+
+    @model_validator(mode="after")
     def _no_dev_shortcuts_in_production(self) -> Settings:
         if self.env == "production" and self.dev_auth:
             raise ValueError("AIRGAP_DEV_AUTH must not be enabled when AIRGAP_ENV=production")

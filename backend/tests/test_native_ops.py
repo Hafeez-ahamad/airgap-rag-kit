@@ -274,3 +274,10 @@ def test_cli_bundle_verify(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     (root / "images.tar").write_bytes(b"evil!")
     assert cli(["bundle", "verify", str(root), "--public-key", str(pub)]) == 1
     assert "BUNDLE REJECTED" in capsys.readouterr().err
+
+
+def test_native_profile_talks_to_host_ollama_not_container_name() -> None:
+    assert Settings(profile="native").ollama_url == "http://127.0.0.1:11434"
+    assert Settings(profile="compose").ollama_url == "http://ollama:11434"
+    custom = Settings(profile="native", ollama_url="http://10.0.0.2:11434")
+    assert custom.ollama_url == "http://10.0.0.2:11434"

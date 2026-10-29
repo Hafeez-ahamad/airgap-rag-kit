@@ -8,11 +8,14 @@ import {
   type Mode,
   type Segment,
 } from "./api";
+import { Markdown } from "./Markdown";
+
+export type Assistant = "general" | "documents";
 
 interface Turn {
   question: string;
   answer: string;
-  status: "streaming" | "done" | "error";
+  status: "streaming" | "done" | "error" | "stopped";
   mode: Mode;
   refused: boolean;
   flagged: boolean;
@@ -24,22 +27,45 @@ interface Turn {
 }
 
 interface Props {
+  assistant: Assistant;
   conversationId: string | null;
-  onNewConversation: () => void;
+  onConversation: (id: string | null) => void;
 }
 
-export function ChatView({ conversationId, onNewConversation }: Props) {
-  const [mode, setMode] = useState<Mode>("grounded");
+const COPY: Record<Assistant, { title: string; empty: string; placeholder: string }> = {
+  general: {
+    title: "General Assistant",
+    empty:
+      "Chat with the local model. It does not read your documents in this mode, so answers are " +
+      "general knowledge, not citations.",
+    placeholder: "Ask anything…",
+  },
+  documents: {
+    title: "Document Assistant",
+    empty:
+      "Ask about your documents. Answers cite the exact passage they come from, or say that the " +
+      "documents do not contain the answer.",
+    placeholder: "Ask about your documents…",
+  },
+};
+
+export function ChatView({ assistant, conversationId, onConversation }: Props) {
+  const [strict, setStrict] = useState(true);
+  const mode: Mode = assistant === "general" ? "assistant" : strict ? "grounded" : "general";
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [convId, setConvId] = useState<string | null>(conversationId);
   const [selected, setSelected] = useState<Citation | null>(null);
   const busy = turns.some((t) => t.status === "streaming");
   const abort = useRef<AbortController | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!conversationId) return;
+    let alive = true;
     void loadMessages(conversationId).then((msgs) => {
+      if (!alive) return;
       const loaded: Turn[] = [];
       for (let i = 0; i < msgs.length - 1; i += 2) {
         const q = msgs[i];
@@ -61,8 +87,15 @@ export function ChatView({ conversationId, onNewConversation }: Props) {
       }
       setTurns(loaded);
     });
-    return () => abort.current?.abort();
+    return () => {
+      alive = false;
+      abort.current?.abort();
+    };
   }, [conversationId]);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView?.({ block: "end" });
+  }, [turns]);
 
   const update = (i: number, patch: Partial<Turn>) =>
     setTurns((ts) => ts.map((t, j) => (j === i ? { ...t, ...patch } : t)));
@@ -97,7 +130,10 @@ export function ChatView({ conversationId, onNewConversation }: Props) {
         else if (ev.type === "retry") update(index, { answer: (text = "") });
         else if (ev.type === "error") update(index, { status: "error", answer: ev.message });
         else if (ev.type === "final") {
-          setConvId(ev.conversation_id);
+          if (ev.conversation_id !== convId) {
+            setConvId(ev.conversation_id);
+            onConversation(ev.conversation_id);
+          }
           update(index, {
             status: "done",
             answer: ev.answer,
@@ -110,95 +146,180 @@ export function ChatView({ conversationId, onNewConversation }: Props) {
         }
       }
     } catch (err) {
-      update(index, { status: "error", answer: err instanceof Error ? err.message : "failed" });
+      if (err instanceof DOMException && err.name === "AbortError") {
+        update(index, { status: "stopped" });
+      } else {
+        update(index, { status: "error", answer: err instanceof Error ? err.message : "failed" });
+      }
+    } finally {
+      inputRef.current?.focus();
     }
   }
 
   async function rate(i: number, rating: "up" | "down" | "wrong") {
     const t = turns[i];
     if (!t?.messageId) return;
-    const comment = rating === "wrong" ? (window.prompt("What is wrong?") ?? undefined) : undefined;
+    const comment = rating === "wrong" ? (window.prompt("What is wrong with this answer?") ?? undefined) : undefined;
     try {
       await sendFeedback(t.messageId, rating, comment);
-      update(i, { feedback: rating });
+      update(i, { feedback: rating === "up" ? "Thanks!" : "Feedback recorded" });
     } catch {
-      update(i, { feedback: "failed to send" });
+      update(i, { feedback: "Could not send feedback" });
     }
   }
 
+  const copy = COPY[assistant];
   return (
-    <div className="chat">
-      <section className="conversation">
-        {turns.length === 0 && <p className="hint">Ask a question about your documents.</p>}
+    <div className={`chat ${selected ? "with-viewer" : ""}`}>
+      <header className="chat-header">
+        <div>
+          <h2>{copy.title}</h2>
+          <p className="muted small">
+            {assistant === "general"
+              ? "No document access · answers are not grounded"
+              : strict
+                ? "Strict: answers only from your documents, with citations"
+                : "Relaxed: uses documents when relevant; other content is labelled"}
+          </p>
+        </div>
+        <div className="chat-header-actions">
+          {assistant === "documents" && (
+            <label className="toggle">
+              <input type="checkbox" checked={!strict} onChange={(e) => setStrict(!e.target.checked)} />
+              Allow general knowledge
+            </label>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              abort.current?.abort();
+              setTurns([]);
+              setConvId(null);
+              onConversation(null);
+            }}
+          >
+            New chat
+          </button>
+        </div>
+      </header>
+
+      <section className="conversation" aria-live="polite">
+        {turns.length === 0 && (
+          <div className="empty">
+            <p>{copy.empty}</p>
+          </div>
+        )}
         {turns.map((t, i) => (
           <article key={i} className="turn">
-            <div className="question">{t.question}</div>
-            {t.rewritten && <div className="rewritten">searched for: {t.rewritten}</div>}
-            <div className={`answer ${t.refused ? "refused" : ""} ${t.status}`}>
+            <div className="bubble user">{t.question}</div>
+            {t.rewritten && <div className="rewritten muted small">Searched for: {t.rewritten}</div>}
+            <div className={`bubble assistant ${t.refused ? "refused" : ""} ${t.status}`}>
+              {t.status === "streaming" && !t.answer && <span className="typing" aria-label="thinking" />}
               {t.mode === "general" && t.segments.length > 0 ? (
-                t.segments.map((s, k) => (
-                  <span key={k} className={s.grounded ? "" : "general"} title={s.label ?? ""}>
-                    {s.text}{" "}
-                  </span>
-                ))
+                <p>
+                  {t.segments.map((s, k) => (
+                    <span key={k} className={s.grounded ? "" : "general"} title={s.label ?? ""}>
+                      {s.text}{" "}
+                    </span>
+                  ))}
+                </p>
               ) : (
-                <span>{t.answer || "…"}</span>
+                t.answer && <Markdown text={t.answer} />
               )}
+              {t.status === "stopped" && <p className="muted small">Stopped.</p>}
             </div>
             {t.segments.some((s) => !s.grounded) && (
-              <div className="label">Highlighted text: general knowledge, not from your documents.</div>
+              <div className="label small muted">
+                Highlighted text is general knowledge, not from your documents.
+              </div>
             )}
             {t.flagged && (
-              <div className="warning">
-                Warning: some citations could not be verified against the sources.
+              <div className="callout warn small" role="status">
+                Some citations could not be verified against the sources and are marked unverified.
               </div>
             )}
             {t.citations.length > 0 && (
               <ul className="citations">
                 {t.citations.map((c, k) => (
-                  <li key={k} className={c.valid ? "" : "invalid"}>
-                    <button onClick={() => setSelected(c)}>
-                      [{c.n}] {c.doc_name ?? "unknown"}
-                      {c.page ? `, p. ${c.page}` : ""}
-                      {c.section ? ` · ${c.section}` : ""}
-                      {!c.valid && ` (unverified: ${c.reason})`}
+                  <li key={k}>
+                    <button
+                      type="button"
+                      className={`citation ${c.valid ? "" : "invalid"}`}
+                      onClick={() => setSelected(c)}
+                      aria-label={`Source ${c.n}: ${c.doc_name ?? "unknown"}`}
+                    >
+                      <span className="cite-n">{c.n}</span>
+                      <span>
+                        {c.doc_name ?? "unknown"}
+                        {c.page ? `, p. ${c.page}` : ""}
+                        {c.section ? ` · ${c.section}` : ""}
+                      </span>
+                      {!c.valid && <span className="badge bad">unverified</span>}
                     </button>
                   </li>
                 ))}
               </ul>
             )}
-            {t.status === "done" && t.messageId && (
-              <div className="feedback">
-                <button aria-label="helpful" onClick={() => rate(i, "up")}>👍</button>
-                <button aria-label="not helpful" onClick={() => rate(i, "down")}>👎</button>
-                <button onClick={() => rate(i, "wrong")}>Report wrong answer</button>
-                {t.feedback && <span className="sent">feedback: {t.feedback}</span>}
+            {(t.status === "done" || t.status === "error") && (
+              <div className="turn-actions">
+                <button
+                  type="button"
+                  className="ghost small"
+                  onClick={() => void navigator.clipboard?.writeText(t.answer)}
+                >
+                  Copy
+                </button>
+                {t.messageId && (
+                  <>
+                    <button type="button" className="ghost small" aria-label="Helpful" onClick={() => rate(i, "up")}>
+                      👍
+                    </button>
+                    <button type="button" className="ghost small" aria-label="Not helpful" onClick={() => rate(i, "down")}>
+                      👎
+                    </button>
+                    <button type="button" className="ghost small" onClick={() => rate(i, "wrong")}>
+                      Report wrong answer
+                    </button>
+                  </>
+                )}
+                {t.feedback && <span className="muted small">{t.feedback}</span>}
               </div>
             )}
           </article>
         ))}
+        <div ref={endRef} />
       </section>
+
       {selected && (
-        <aside className="citation-viewer">
+        <aside className="citation-viewer" aria-label="Source passage">
           <header>
             <strong>{selected.doc_name}</strong>
-            <button onClick={() => setSelected(null)} aria-label="close">✕</button>
+            <button type="button" className="ghost" onClick={() => setSelected(null)} aria-label="Close source">
+              ✕
+            </button>
           </header>
-          <p className="meta">
-            {selected.page ? `Page ${selected.page}` : "No page"}
+          <p className="muted small">
+            {selected.page ? `Page ${selected.page}` : "No page number"}
             {selected.section ? ` · ${selected.section}` : ""}
             {selected.version ? ` · version ${selected.version}` : ""}
           </p>
+          {!selected.valid && (
+            <div className="callout bad small">
+              Not verified: {selected.reason}. Do not rely on this quote.
+            </div>
+          )}
           <blockquote>{selected.quote}</blockquote>
           <button
+            type="button"
             onClick={() => {
-              openSource(selected).catch(() => window.alert("Source is not available"));
+              openSource(selected).catch(() => window.alert("The source document is not available."));
             }}
           >
             Open source document
           </button>
         </aside>
       )}
+
       <form
         className="composer"
         onSubmit={(e) => {
@@ -206,30 +327,32 @@ export function ChatView({ conversationId, onNewConversation }: Props) {
           void ask();
         }}
       >
-        <select value={mode} onChange={(e) => setMode(e.target.value as Mode)} aria-label="mode">
-          <option value="grounded">Grounded only (cite or refuse)</option>
-          <option value="general">General assistant</option>
-        </select>
-        <input
+        <textarea
+          ref={inputRef}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a question…"
-          maxLength={4000}
-        />
-        <button type="submit" disabled={busy || !question.trim()}>
-          Ask
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setTurns([]);
-            setConvId(null);
-            onNewConversation();
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void ask();
+            }
           }}
-        >
-          New chat
-        </button>
+          placeholder={copy.placeholder}
+          maxLength={4000}
+          rows={1}
+          aria-label="Message"
+        />
+        {busy ? (
+          <button type="button" onClick={() => abort.current?.abort()}>
+            Stop
+          </button>
+        ) : (
+          <button type="submit" className="primary" disabled={!question.trim()}>
+            Send
+          </button>
+        )}
       </form>
+      <p className="composer-hint muted small">Enter to send · Shift+Enter for a new line · runs on this computer</p>
     </div>
   );
 }
