@@ -122,7 +122,11 @@ def _ollama_privacy(report: HardwareReport) -> Check:
         title="Ollama cloud features off",
         required=False,
         status=CheckStatus.UNKNOWN,
-        detail="Ollama 0.40+ can contact ollama.com. The app cannot read the runtime's settings.",
+        detail=(
+            "Ollama 0.40+ has cloud features. On the development machine a native install was "
+            "observed connecting to a public address while idle (eval/results). The app cannot "
+            "read the runtime's settings, so it cannot confirm they are off."
+        ),
         actions=[
             Action(
                 kind=ActionKind.MANUAL,

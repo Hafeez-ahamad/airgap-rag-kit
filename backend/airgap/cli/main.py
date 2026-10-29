@@ -229,6 +229,22 @@ def cmd_bundle(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_bundle_build(args: argparse.Namespace) -> int:
+    """Build machine only: write MANIFEST.json for a prepared bundle directory, optionally sign."""
+    from airgap.ops.bundle import create_manifest, generate_keypair, sign_manifest
+
+    if args.bundle_cmd == "keygen":
+        generate_keypair(Path(args.private), Path(args.public))
+        print(f"keys written; keep {args.private} OFF the bundle and out of the repository")
+        return 0
+    root = Path(args.dir)
+    create_manifest(root, args.profile)
+    if args.key:
+        sign_manifest(root, Path(args.key))
+    print(f"manifest written for {root}" + (" and signed" if args.key else " (UNSIGNED)"))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="airgap", description="AirGap RAG Kit")
     p.add_argument("--data-dir")
@@ -274,6 +290,15 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("dir")
     b.add_argument("--public-key")
     b.set_defaults(fn=cmd_bundle)
+    b = bsub.add_parser("manifest", help="build machine: checksum (and sign) a bundle directory")
+    b.add_argument("dir")
+    b.add_argument("--profile", default="lite")
+    b.add_argument("--key", help="Ed25519 private key (PEM) to sign with")
+    b.set_defaults(fn=cmd_bundle_build)
+    b = bsub.add_parser("keygen", help="build machine: create an Ed25519 signing key pair")
+    b.add_argument("private")
+    b.add_argument("public")
+    b.set_defaults(fn=cmd_bundle_build)
     return p
 
 

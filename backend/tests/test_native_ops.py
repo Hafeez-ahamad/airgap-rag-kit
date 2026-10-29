@@ -302,3 +302,12 @@ def test_no_egress_parsers_flag_only_public_addresses() -> None:
     rows = mod.parse_connections(linux, "Linux")
     assert rows == [("2606:4700::1111", "ESTAB", 77)] and mod.is_external(rows[0][0])
     assert not mod.is_external("10.1.2.3") and not mod.is_external("::1")
+
+
+def test_cli_bundle_manifest_keygen_and_verify_round_trip(tmp_path: Path) -> None:
+    root = tmp_path / "b"
+    (root / "models").mkdir(parents=True)
+    (root / "models" / "x.gguf").write_bytes(b"abc")
+    assert cli(["bundle", "keygen", str(tmp_path / "k.pem"), str(tmp_path / "k.pub")]) == 0
+    assert cli(["bundle", "manifest", str(root), "--key", str(tmp_path / "k.pem")]) == 0
+    assert cli(["bundle", "verify", str(root), "--public-key", str(tmp_path / "k.pub")]) == 0
