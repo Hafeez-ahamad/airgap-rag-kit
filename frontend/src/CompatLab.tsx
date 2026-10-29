@@ -41,7 +41,11 @@ export function CompatLab({ onExit }: { onExit: () => void }) {
 
   useEffect(() => {
     labProfiles()
-      .then(setProfiles)
+      .then((p) => {
+        setProfiles(p);
+        // Keep the selection consistent with what the server offers.
+        setSource((s) => (s === "custom" || p.profiles.some((x) => x.id === s) ? s : (p.profiles[0]?.id ?? "custom")));
+      })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Could not load profiles"));
   }, []);
 
