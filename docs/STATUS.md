@@ -55,6 +55,10 @@ Final checks: backend `pytest` **181 passed, 1 skipped** (Tesseract absent); ruf
   (the Windows installer does not add it to PATH) or via `AIRGAP_OCR_BINARY`; uses only installed
   language packs and reports missing ones instead of failing every scanned page.
 
+- 2026-10-29: published history rewritten at the owner's request to remove automated
+  co-author trailers (messages only; code, authors and dates unchanged; old history kept in local
+  `backup/pre-rewrite/*` branches). Claude Code commit attribution is disabled.
+
 ## Blocked or unverified
 | Item | Why | Next step |
 |---|---|---|
