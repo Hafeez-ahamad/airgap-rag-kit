@@ -1,7 +1,7 @@
 {
  "level": "L5 real-service observation (native profile)",
  "at": "2026-10-29T12:19:16.007325+00:00",
- "host": "Wh1t3D3v1L",
+ "host": "dev-laptop",
  "pids": [3584, 16508, 21552],
  "pid_roles": {"16508": "airgap serve (native app)", "3584": "ollama", "21552": "ollama"},
  "note": "Raw JSON from this run was overwritten by run 2 before the script used unique names; this file reproduces the run's printed output verbatim. The chat in this run returned 401 (client cookie bug, since fixed), so the window was idle.",

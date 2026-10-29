@@ -1,0 +1,60 @@
+{
+ "level": "L5/L6 real setup flow",
+ "at": "2026-10-29T12:45:45.160130+00:00",
+ "host": "dev-laptop",
+ "scan_seconds": 2.1,
+ "tier": "constrained",
+ "recommended": "qwen3-4b-instruct-2507-q4km",
+ "model": "qwen3-4b-instruct-2507-q4km",
+ "ram_available_gib": 2.87,
+ "prerequisites": {
+  "ollama": "ok",
+  "ollama-privacy": "unknown",
+  "docker": "not_required",
+  "gpu-driver": "ok",
+  "disk": "ok",
+  "retrieval-runtime": "ok",
+  "ocr": "missing"
+ },
+ "plan_status": 200,
+ "plan_ready": true,
+ "plan_download_bytes": 2500000000,
+ "plan_steps": [
+  "Disable Ollama cloud access",
+  "Install Tesseract (optional)",
+  "Download Qwen3 4B Instruct (2507)",
+  "Verify installed retrieval models",
+  "Write runtime configuration",
+  "Load the model and run a real inference test"
+ ],
+ "install_seconds": 762.1,
+ "job_status": "verified",
+ "job_error": null,
+ "job_items": {
+  "model:qwen3-4b-instruct-2507-q4km": {
+   "status": "verified",
+   "detail": "success",
+   "completed": null,
+   "total": null
+  },
+  "retrieval": {
+   "status": "verified",
+   "completed": 4586552165,
+   "total": 4586552165
+  },
+  "verify": {
+   "status": "verified",
+   "seconds": 15.7
+  }
+ },
+ "setup_complete": true,
+ "active_model_id": "qwen3-4b-instruct-2507-q4km",
+ "steps": {
+  "scan": "verified",
+  "prerequisites": "verified",
+  "models": "verified",
+  "install": "verified",
+  "verify": "verified"
+ },
+ "passed": true
+}

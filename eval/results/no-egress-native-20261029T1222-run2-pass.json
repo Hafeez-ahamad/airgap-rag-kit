@@ -1,7 +1,7 @@
 {
  "level": "L5 real-service observation (native profile)",
  "at": "2026-10-29T12:22:03.768408+00:00",
- "host": "Wh1t3D3v1L",
+ "host": "dev-laptop",
  "pids": [
   3584,
   16508,
