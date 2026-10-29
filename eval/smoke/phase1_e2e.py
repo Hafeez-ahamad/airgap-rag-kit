@@ -2,6 +2,8 @@
 
 Usage (from the repo root, stack running):
     cd backend && uv run python ../eval/smoke/phase1_e2e.py --base https://localhost:8443/api
+    # native profile with real accounts:
+    cd backend && uv run python ../eval/smoke/phase1_e2e.py --base http://127.0.0.1:8000/api --user ADMIN --password PW
 
 Prints one line per check plus the raw answers, and exits non-zero if any check fails.
 This is a functional smoke test, not a quality evaluation: it reports no accuracy numbers.
@@ -25,6 +27,19 @@ USER = {"X-Dev-User": "e2e"}
 RESULTS: list[tuple[str, bool, str]] = []
 
 
+OTHER_PW = "e2e-other-user-password"
+
+
+def session_client(base: str, user: str, password: str | None) -> httpx.Client:
+    """Real session auth. httpx does not send Secure cookies over plain http; pass explicitly."""
+    c = httpx.Client(base_url=base, verify=False, timeout=600)  # noqa: S501
+    r = c.post("/auth/login", json={"username": user, "password": password})
+    r.raise_for_status()
+    c.headers.update({"X-CSRF-Token": r.json()["csrf_token"],
+                      "Cookie": f"airgap_session={r.cookies['airgap_session']}"})
+    return c
+
+
 def check(name: str, ok: bool, detail: str = "") -> None:
     RESULTS.append((name, ok, detail))
     print(f"[{'PASS' if ok else 'FAIL'}] {name}{': ' + detail if detail else ''}", flush=True)
@@ -45,7 +60,11 @@ def wait_ready(client: httpx.Client, names: set[str], timeout_s: float) -> dict[
     deadline = time.monotonic() + timeout_s
     docs: dict[str, dict[str, Any]] = {}
     while time.monotonic() < deadline:
-        docs = {d["name"]: d for d in client.get("/documents").json()}
+        try:
+            docs = {d["name"]: d for d in client.get("/documents").json()}
+        except httpx.RemoteProtocolError:  # idempotent poll: retry on a dropped keep-alive
+            time.sleep(1)
+            continue
         states = [docs.get(n, {}).get("status") for n in names]
         if all(s in {"ready", "failed"} for s in states):
             return docs
@@ -78,9 +97,14 @@ def main() -> int:
     parser.add_argument("--base", default="https://localhost:8443/api")
     parser.add_argument("--max-upload-mb", type=int, default=50)
     parser.add_argument("--ingest-timeout", type=float, default=900)
+    parser.add_argument("--user", help="admin account (session auth); omit for the dev stub")
+    parser.add_argument("--password")
     args = parser.parse_args()
     # Self-signed dev certificate: verification off for this local smoke test only.
-    client = httpx.Client(base_url=args.base, headers=USER, verify=False, timeout=600)  # noqa: S501
+    if args.user:
+        client = session_client(args.base, args.user, args.password)
+    else:
+        client = httpx.Client(base_url=args.base, headers=USER, verify=False, timeout=600)  # noqa: S501
 
     health = client.get("/health").json()
     check("health ok", health["status"] == "ok", json.dumps(health["components"]))
@@ -159,7 +183,12 @@ def main() -> int:
     check("feedback stored", fb.status_code == 201)
     hist = client.get("/chat/history").json()
     check("history lists conversations", len(hist) >= 5, f"{len(hist)} conversations")
-    other = client.get("/chat/history", headers={"X-Dev-User": "someone-else"}).json()
+    if args.user:
+        client.post("/admin/users", json={"username": "e2e-other", "password": OTHER_PW,
+                                          "role": "viewer", "groups": ["default"]})
+        other = session_client(args.base, "e2e-other", OTHER_PW).get("/chat/history").json()
+    else:
+        other = client.get("/chat/history", headers={"X-Dev-User": "someone-else"}).json()
     check("history isolated per user", other == [])
 
     failed = [n for n, ok, _ in RESULTS if not ok]

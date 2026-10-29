@@ -1,6 +1,6 @@
 # Status
 
-_Last updated: 2026-10-29, end of session 3. Branch `phase-2/hardware-adaptive` (from
+_Last updated: 2026-10-29, session 3 (after the full native run). Branch `phase-2/hardware-adaptive` (from
 `phase-1/core`; neither merged to `main`)._
 
 ## Completed this session (with evidence)
@@ -37,23 +37,38 @@ Final checks: backend `pytest` **181 passed, 1 skipped** (Tesseract absent); ruf
   connected to a public address in run 1 (FAIL)**, none in run 2. Ollama also auto-updated itself
   (0.40.12 -> 0.40.13) during the session.
 
+## Full native-stack run on the dev laptop (owner approved stopping Docker and pulling qwen3:4b)
+- Docker Desktop stopped (WSL `docker-desktop` VM terminated). Restart it from the Start menu
+  when needed.
+- Embedding runtime installed (`uv sync --extra models`: torch 2.14.1+cpu, sentence-transformers 6.2.0).
+- Real setup via the kit: qwen3:4b pulled, retrieval models SHA-256 verified, real inference
+  check passed; setup complete. Restart kept the selected model.
+- Phase 1 acceptance (native, real models, real accounts): **21/23**. Both failures are the
+  scanned PDF (Tesseract not installed).
+- Live eval (n=22): grounded 10/10, citations valid 11/11, refusal recall 4/5, injection 0/3
+  complied, ACL leaks 0/4. One false refusal: gate threshold uncalibrated.
+- Bugs found and fixed on real hardware: follow-up answers lost their citations (old "[1]"
+  markers fed back into the prompt; regression test added); the planner under-budgeted retrieval
+  models (measured loading peak 4.31 GB vs 2.56 GiB steady); a keep-alive race under paging.
+
 ## Blocked or unverified
 | Item | Why | Next step |
 |---|---|---|
-| Document Assistant with real models | needs PyTorch + ~2.6 GiB RAM; ~1 GB free here | VALIDATION.md §A on a 16 GB+ machine |
-| Compose full stack | Docker Desktop engine returns HTTP 500; 7.4 GB RAM | VALIDATION.md §B on Linux 16 GB+ |
-| Offline bundle install | build not run (Docker down, multi-GB downloads) | VALIDATION.md §C |
+| OCR (scanned PDFs) | Tesseract not installed here | install Tesseract; rerun `phase1_e2e.py` |
+| Comfortable memory headroom | free RAM fell to 0.23 GB during ingestion on 7.4 GB | repeat VALIDATION.md §A on 16 GB+ |
+| Compose full stack | Docker stopped / engine previously HTTP 500; 7.4 GB RAM | VALIDATION.md §B on Linux 16 GB+ |
+| Offline bundle install | build not run | VALIDATION.md §C |
 | Firewall-level no-egress | needs host firewall change (not done without approval) | VALIDATION.md §D |
-| Real-model eval, gate calibration, bake-off | depends on the Document Assistant run | `run_eval.py --adapter live` |
+| Gate calibration, bake-off | n=22 too small; one model only | larger labelled set; more models |
 | Linux/macOS real probes, every non-laptop tier | hardware not available | marked "not yet validated" |
 
 ## Decisions waiting on the owner
-1. Restart Docker Desktop (wedged), or stop it to free RAM so the Document Assistant can be
-   tried here. I have not touched it.
+1. Docker Desktop was stopped at your request; restart it when you need containers.
 2. Set `OLLAMA_NO_CLOUD=1` and disable Ollama auto-update on this machine (persistent host
    settings; not changed by me).
 3. Keep SQLite in the native profile (ADR-0009).
 4. Merge `phase-1/core` and this branch to `main` before or after a full-stack pass elsewhere.
 
 ## Next action
-Run docs/VALIDATION.md §A on a 16 GB+ machine and record the results here.
+Install Tesseract and rerun the acceptance here, or run docs/VALIDATION.md §A-D on a 16 GB+
+machine; then calibrate the gate threshold on a larger labelled set.

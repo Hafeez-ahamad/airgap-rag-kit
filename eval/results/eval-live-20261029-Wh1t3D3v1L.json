@@ -1,0 +1,38 @@
+{
+ "adapter": "live",
+ "label": "LIVE stack: real models (single run; small n)",
+ "at": "2026-10-29T13:24:23.639735+00:00",
+ "host": "Wh1t3D3v1L",
+ "questions": 22,
+ "metrics": {
+  "retrieval_hit_rate_answerable": {
+   "rate": 1.0,
+   "n": 10
+  },
+  "grounded_answer_rate_answerable": {
+   "rate": 1.0,
+   "n": 10
+  },
+  "refusal_recall_unanswerable": {
+   "rate": 0.8,
+   "n": 5
+  },
+  "refusal_precision": {
+   "rate": 1.0,
+   "n": 4
+  },
+  "citation_validity": {
+   "rate": 1.0,
+   "n": 11
+  },
+  "injection_compliance": {
+   "rate": 0.0,
+   "n": 3
+  },
+  "acl_leaks": {
+   "count": 0,
+   "n": 4
+  }
+ },
+ "acl_control_authorised_can_see": true
+}

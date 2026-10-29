@@ -52,6 +52,8 @@ class Api:
         r = self.c.post(f"{self.p}{path}", json={"username": user, "password": password})
         r.raise_for_status()
         self.h = {"X-CSRF-Token": r.json()["csrf_token"]}
+        if "airgap_session" in r.cookies:  # httpx won't send Secure cookies over plain http
+            self.h["Cookie"] = f"airgap_session={r.cookies['airgap_session']}"
 
     def post(self, path: str, **kw: Any) -> Any:
         return self.c.post(f"{self.p}{path}", headers=self.h, **kw)
@@ -73,23 +75,28 @@ def prepare(admin: Api) -> None:
                                          "groups": groups})
     admin.post("/admin/users", json={"username": "eval-admin-groups", "password": EVAL_PW,
                                      "role": "admin", "groups": ["default", "finance-restricted"]})
-    corpus = [p for p in sorted((DATA / "corpus").glob("*.md")) if p.name != "README.md"]
-    for path in corpus:
+    for path in [DATA / "corpus" / n for n in corpus_names()]:
         groups = ["finance-restricted"] if path.name in RESTRICTED else ["default"]
         r = admin.post("/documents", files=[("files", (path.name, path.read_bytes()))],
                        data={"paths": [path.name], "groups": groups})
         r.raise_for_status()
 
 
-def wait_ready(api: Api, n: int, timeout_s: float) -> list[dict[str, Any]]:
+def corpus_names() -> list[str]:
+    return [p.name for p in sorted((DATA / "corpus").glob("*.md")) if p.name != "README.md"]
+
+
+def wait_ready(api: Api, names: set[str], timeout_s: float) -> dict[str, str]:
+    """Wait until these documents (as visible to ``api``'s user) are ready or failed."""
     deadline = time.monotonic() + timeout_s
-    docs: list[dict[str, Any]] = []
+    status: dict[str, str] = {}
     while time.monotonic() < deadline:
-        docs = api.get("/documents").json()
-        if len(docs) >= n and all(d["status"] in {"ready", "failed"} for d in docs):
+        status = {d["name"]: d["status"] for d in api.get("/documents").json()
+                  if d["name"] in names}
+        if set(status) == names and all(v in {"ready", "failed"} for v in status.values()):
             break
         time.sleep(1)
-    return docs
+    return status
 
 
 def score(q: dict[str, Any], final: dict[str, Any]) -> dict[str, Any]:
@@ -136,15 +143,18 @@ def summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def run(api_factory: Any, admin: Api, timeout_s: float) -> list[dict[str, Any]]:
     prepare(admin)
-    wait_ready(admin, 4, timeout_s)
     viewer = api_factory()
     viewer.login("eval-viewer", EVAL_PW)
+    finance = api_factory()
+    finance.login("eval-finance", EVAL_PW)
+    public = set(corpus_names()) - RESTRICTED
+    ready = {**wait_ready(viewer, public, timeout_s), **wait_ready(finance, RESTRICTED, timeout_s)}
+    if any(v != "ready" for v in ready.values()) or len(ready) != len(corpus_names()):
+        raise RuntimeError(f"corpus not ingested: {ready}")
     rows = []
     for q in load_questions():
         rows.append(score(q, viewer.ask(q["question"])))
     # The ACL test is vacuous unless an authorised user CAN retrieve the secret.
-    finance = api_factory()
-    finance.login("eval-finance", EVAL_PW)
     control = finance.ask("What is the chief financial officer base salary band?")
     rows.append({"id": "x00-control", "type": "acl_control", "refused": control.get("refused"),
                  "n_citations": len(control.get("citations", [])), "n_valid": 0,

@@ -1,0 +1,45 @@
+[PASS] health ok: {"database": "ok", "vector_store": "ok", "llm": "ok", "retrieval_models": "ok"}
+[PASS] all fixture files accepted: e2e/pump_manual.pdf=queued, e2e/leave_policy.docx=queued, e2e/scanned_notice.pdf=queued, e2e/parts.csv=queued, e2e/budget.xlsx=queued, e2e/folder/notes.md=queued
+[PASS] oversized file rejected with reason: e2e/huge.txt: file is larger than the 50 MB limit
+[PASS] disallowed type rejected with reason: e2e/tool.exe: file type not allowed (allowed: .csv, .docx, .markdown, .md, .pdf, .txt, .xlsx)
+[PASS] e2e/pump_manual.pdf reaches ready: status=ready error=None chunks=2 ocr_pages=[]
+[PASS] e2e/leave_policy.docx reaches ready: status=ready error=None chunks=2 ocr_pages=[]
+[FAIL] e2e/scanned_notice.pdf reaches ready: status=failed error=no text found in document (OCR is not available) chunks=0 ocr_pages=[]
+[PASS] e2e/parts.csv reaches ready: status=ready error=None chunks=1 ocr_pages=[]
+[PASS] e2e/budget.xlsx reaches ready: status=ready error=None chunks=1 ocr_pages=[]
+[PASS] e2e/folder/notes.md reaches ready: status=ready error=None chunks=1 ocr_pages=[]
+    ingestion wall time: 56s (single run, not a benchmark)
+    Q: How often must the P-100 pump be serviced?
+    A: "The P-100 pump must be serviced every 500 operating hours. [1]"
+       [1] e2e/pump_manual.pdf p=1 sec='1 Maintenance' valid=True
+[PASS] answerable: cited, not refused: flagged=False retries=0 13.5s
+[PASS] answerable: citation has page
+    Q: What time does the cafeteria close on Fridays?
+    A: "I could not find this in your documents."
+[FAIL] scanned (OCR) content answerable
+    Q: Who won the football World Cup in 1998?
+    A: "I could not find this in your documents."
+[PASS] unanswerable: refused: I could not find this in your documents.
+    Q: Who won the football World Cup in 1998?
+    A: "France won the football World Cup in 1998."
+[PASS] general mode: answers, labels general knowledge
+    Q: What does the Premium warranty cover?
+    A: "The Premium warranty covers labour for 36 months. [1]"
+       [1] e2e/folder/notes.md p=None sec='Warranty' valid=True
+    Q: and for how many months?
+    A: "The Premium warranty covers labour for 36 months. [1]"
+       [1] e2e/folder/notes.md p=None sec='Warranty' valid=True
+[PASS] follow-up rewritten: And for how many months does the Premium warranty cover labour?
+[PASS] follow-up answered with citation
+[PASS] unchanged re-upload is a no-op: unchanged
+[PASS] changed file becomes new version: new_version v2
+    Q: How often must the P-100 pump be serviced?
+    A: "The P-100 pump must be serviced every 750 operating hours. [1]"
+       [1] e2e/pump_manual.pdf p=1 sec='1 Maintenance' valid=True
+[PASS] old version gone, new version cited: The P-100 pump must be serviced every 750 operating hours.
+[PASS] feedback stored
+[PASS] history lists conversations: 14 conversations
+[PASS] history isolated per user
+
+21/23 checks passed
+exit=1

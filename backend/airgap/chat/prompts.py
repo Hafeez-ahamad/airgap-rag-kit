@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 
 from airgap.core.types import ChatMessage, Chunk, Mode, Role
@@ -63,17 +64,30 @@ def format_context(chunks: Sequence[Chunk]) -> str:
     return "\n".join(parts)
 
 
+_OLD_MARKER = re.compile(r"\s*\[\d{1,2}(?::[^\]]*)?\]")
+
+
+def _past(history: Sequence[ChatMessage], keep: int) -> list[ChatMessage]:
+    """Earlier turns without their citation markers: an old "[1]" referred to a different
+    context block, and models copy the bare-marker display format (found on real hardware)."""
+    out = []
+    for m in [m for m in history if m.role is not Role.SYSTEM][-keep:]:
+        content = _OLD_MARKER.sub("", m.content) if m.role is Role.ASSISTANT else m.content
+        out.append(ChatMessage(m.role, content))
+    return out
+
+
 def answer_messages(
     mode: Mode, question: str, chunks: Sequence[Chunk], history: Sequence[ChatMessage]
 ) -> list[ChatMessage]:
     system = GROUNDED_SYSTEM if mode is Mode.GROUNDED else GENERAL_SYSTEM
     body = f"{format_context(chunks)}\n\nQuestion: {question}" if chunks else question
-    recent = [m for m in history if m.role is not Role.SYSTEM][-4:]
+    recent = _past(history, 4)
     return [ChatMessage(Role.SYSTEM, system), *recent, ChatMessage(Role.USER, body)]
 
 
 def assistant_messages(question: str, history: Sequence[ChatMessage]) -> list[ChatMessage]:
-    recent = [m for m in history if m.role is not Role.SYSTEM][-8:]
+    recent = _past(history, 8)
     return [ChatMessage(Role.SYSTEM, ASSISTANT_SYSTEM), *recent, ChatMessage(Role.USER, question)]
 
 
@@ -88,7 +102,7 @@ def retry_message(problems: Sequence[str]) -> ChatMessage:
 
 
 def rewrite_messages(history: Sequence[ChatMessage], question: str) -> list[ChatMessage]:
-    lines = [f"{m.role.value}: {m.content}" for m in history[-6:] if m.role is not Role.SYSTEM]
+    lines = [f"{m.role.value}: {m.content}" for m in _past(history, 6)]
     convo = "\n".join(lines)
     return [
         ChatMessage(Role.SYSTEM, REWRITE_SYSTEM),

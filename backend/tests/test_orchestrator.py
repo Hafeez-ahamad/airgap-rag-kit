@@ -147,3 +147,23 @@ def test_prompt_delimits_documents_and_neutralises_closing_tags(kit: Kit) -> Non
     prompt = llm.calls[0][-1].content
     assert prompt.count("</document>") == 1  # only our own closing tag
     assert "untrusted data" in llm.calls[0][0].content
+
+
+def test_previous_turn_citation_markers_are_not_fed_back_to_the_model() -> None:
+    """Regression (real hardware, qwen3:4b): with "[1]" kept in history the model answered the
+    follow-up with a bare marker and no verifiable quote, so the answer was flagged."""
+    from airgap.chat import prompts
+    from airgap.core.types import ChatMessage, Mode, Role
+
+    history = [
+        ChatMessage(Role.USER, "What does the Premium warranty cover? [see 2]"),
+        ChatMessage(Role.ASSISTANT, 'Labour for 36 months. [1] Parts too [2: "parts"]'),
+    ]
+    for msgs in (
+        prompts.answer_messages(Mode.GROUNDED, "and for how long?", [], history),
+        prompts.assistant_messages("and for how long?", history),
+        prompts.rewrite_messages(history, "and for how long?"),
+    ):
+        text = "\n".join(m.content for m in msgs)
+        assert "[1]" not in text and '[2: "parts"]' not in text
+        assert "Labour for 36 months." in text

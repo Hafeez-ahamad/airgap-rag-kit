@@ -192,8 +192,14 @@ def cmd_serve(args: argparse.Namespace) -> int:
     if host not in {"127.0.0.1", "::1", "localhost"}:
         print(f"WARNING: listening on {host} exposes the app to your network.", file=sys.stderr)
     configure_logging()
+    # Keep-alive above the UI's poll interval: under memory pressure a 5 s default races with
+    # clients reusing the connection ("server disconnected without sending a response").
     uvicorn.run(
-        create_native_app(settings), host=host, port=args.port or settings.port, server_header=False
+        create_native_app(settings),
+        host=host,
+        port=args.port or settings.port,
+        server_header=False,
+        timeout_keep_alive=30,
     )
     return 0
 
