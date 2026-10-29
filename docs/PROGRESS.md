@@ -1,6 +1,22 @@
 # PROGRESS
 
-_Last updated: 2026-10-28 (session 1, end)_
+_Last updated: 2026-10-29 (session 3, end)_
+
+## Session 3 (2026-10-29): owner's master prompt (hardware-adaptive product) is primary
+- **Branch:** `phase-2/hardware-adaptive` (from `phase-1/core`). Nothing merged to `main`.
+- **Current state, evidence, blockers and the exact next step: see `docs/STATUS.md`.**
+  Also `docs/IMPLEMENTATION_AUDIT.md`, `docs/ROADMAP.md`, `docs/RELEASE_READINESS.md`,
+  `docs/VALIDATION.md`.
+- Built: capacity probe/planner/catalogue, Compatibility Lab, auth/roles/ACL/audit, setup and
+  installer, native lean profile (ADR-0009), CLI, backup/restore, signed bundles (ADR-0011),
+  General Assistant mode, rebuilt UI, eval harness, no-egress tests.
+- Tests: backend 181 passed / 1 skipped; UI 8 passed.
+- The owner explicitly asked to continue past unfinished Phase 1 live acceptance
+  (BUILD_PROMPT rule 7 exception); Phase 1 acceptance is still open and recorded as such.
+
+---
+
+_Session 1-2 record follows._
 
 ## Current state
 - **Phase:** 1 (Core). Code complete on branch `phase-1/core`, acceptance partly verified. **Not merged to `main`.** See `docs/reports/phase1.md`.
