@@ -8,7 +8,7 @@ a licence acceptance, a reboot or a vendor installer are returned for the user t
 from __future__ import annotations
 
 import importlib.util
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from enum import StrEnum
 
 from pydantic import BaseModel
@@ -308,26 +308,46 @@ def _python_models(native: bool, find: Callable[[str], object | None]) -> Check:
     )
 
 
-def _ocr(report: HardwareReport) -> Check:
+def _ocr(report: HardwareReport, languages: Sequence[str]) -> Check:
     tesseract = report.runtime("tesseract")
-    ok = tesseract is not None and tesseract.installed
+    title = "OCR for scanned PDFs (Tesseract)"
+    install = Action(
+        kind=ActionKind.MANUAL,
+        title="Install Tesseract (optional)",
+        instructions="Install Tesseract OCR with the language packs you need "
+        f"({', '.join(languages)}). On Windows the UB Mannheim installer is linked from the "
+        "Tesseract documentation; the app finds it in Program Files without a PATH change.",
+        url="https://tesseract-ocr.github.io/tessdoc/Installation.html",
+        needs_network=True,
+    )
+    if tesseract is None or not tesseract.installed:
+        return Check(
+            id="ocr",
+            title=title,
+            required=False,
+            status=CheckStatus.MISSING,
+            detail="scanned pages will be reported as having no text",
+            actions=[install],
+        )
+    detail = tesseract.detail or ""
+    found = set(detail.removeprefix("languages: ").split(", ")) if detail else set()
+    missing = [lang for lang in languages if lang not in found]
+    if not missing:
+        return Check(
+            id="ocr",
+            title=title,
+            required=False,
+            status=CheckStatus.OK,
+            detail=f"version {tesseract.version}; {detail}",
+        )
     return Check(
         id="ocr",
-        title="OCR for scanned PDFs (Tesseract)",
+        title=title,
         required=False,
-        status=CheckStatus.OK if ok else CheckStatus.MISSING,
-        detail=None if ok else "scanned pages will be reported as having no text",
-        actions=[]
-        if ok
-        else [
-            Action(
-                kind=ActionKind.MANUAL,
-                title="Install Tesseract (optional)",
-                instructions="Install Tesseract OCR with English and the language packs you need.",
-                url="https://tesseract-ocr.github.io/tessdoc/Installation.html",
-                needs_network=True,
-            )
-        ],
+        status=CheckStatus.OUTDATED,
+        detail=f"{detail}; missing language packs: {', '.join(missing)} "
+        "(scans in those languages are read with the installed packs only)",
+        actions=[install.model_copy(update={"title": "Add OCR language packs"})],
     )
 
 
@@ -336,6 +356,7 @@ def check_prerequisites(
     assessment: Assessment,
     catalog: Catalog,
     find_module: Callable[[str], object | None] = importlib.util.find_spec,
+    ocr_languages: Sequence[str] = ("eng", "hin"),
 ) -> list[Check]:
     if assessment.simulated:
         raise ValueError("prerequisites are checked against real hardware only")
@@ -347,5 +368,5 @@ def check_prerequisites(
         _gpu_driver(report),
         _disk(report, assessment),
         _python_models(native and assessment.document_assistant_available, find_module),
-        _ocr(report),
+        _ocr(report, ocr_languages),
     ]

@@ -1,10 +1,9 @@
-import shutil
-
 import pytest
 
 from airgap.core.ports import SparseVector
 from airgap.core.types import DocStatus
 from airgap.ingestion.documents import Outcome
+from airgap.ingestion.ocr import find_tesseract
 from airgap.ingestion.parsers import parse
 from airgap.ingestion.validate import FileType
 from airgap.retrieval import bm25
@@ -130,7 +129,7 @@ def test_text_pdf_keeps_pages_and_numbered_headings() -> None:
     assert parsed.ocr_pages == []
 
 
-@pytest.mark.skipif(shutil.which("tesseract") is None, reason="tesseract binary not installed")
+@pytest.mark.skipif(find_tesseract() is None, reason="tesseract binary not installed")
 def test_real_tesseract_reads_scanned_pdf() -> None:
     from airgap.ingestion.ocr import TesseractOCR
 

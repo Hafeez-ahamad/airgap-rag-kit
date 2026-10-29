@@ -51,10 +51,14 @@ Final checks: backend `pytest` **181 passed, 1 skipped** (Tesseract absent); ruf
   markers fed back into the prompt; regression test added); the planner under-budgeted retrieval
   models (measured loading peak 4.31 GB vs 2.56 GiB steady); a keep-alive race under paging.
 
+- OCR adapter hardened (mock-tested, 8 tests): finds Tesseract in standard install locations
+  (the Windows installer does not add it to PATH) or via `AIRGAP_OCR_BINARY`; uses only installed
+  language packs and reports missing ones instead of failing every scanned page.
+
 ## Blocked or unverified
 | Item | Why | Next step |
 |---|---|---|
-| OCR (scanned PDFs) | Tesseract not installed here | install Tesseract; rerun `phase1_e2e.py` |
+| OCR (scanned PDFs) | Tesseract install attempted (winget, UB Mannheim 5.4.0, hash verified) but cancelled at the Windows admin prompt; owner chose to skip | install Tesseract (admin), then rerun `phase1_e2e.py` |
 | Comfortable memory headroom | free RAM fell to 0.23 GB during ingestion on 7.4 GB | repeat VALIDATION.md §A on 16 GB+ |
 | Compose full stack | Docker stopped / engine previously HTTP 500; 7.4 GB RAM | VALIDATION.md §B on Linux 16 GB+ |
 | Offline bundle install | build not run | VALIDATION.md §C |

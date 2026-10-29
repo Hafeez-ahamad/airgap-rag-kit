@@ -128,7 +128,7 @@ def worker() -> None:
         FileBlobStore(settings.blob_root),
         QdrantStore(QdrantClient(url=settings.qdrant_url, timeout=60), settings.qdrant_collection),
         RemoteEmbedder(settings.model_service_url, timeout_s=600),
-        TesseractOCR(),
+        TesseractOCR(settings.ocr_binary),
         SystemClock(),
         PipelineConfig(
             settings.chunk_max_chars,

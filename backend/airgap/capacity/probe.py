@@ -26,6 +26,7 @@ from airgap.capacity.hardware import (
     ReportSource,
     RuntimeInfo,
 )
+from airgap.ingestion.ocr import default_locations, find_tesseract, parse_langs
 
 MIB = 1024**2
 
@@ -89,6 +90,7 @@ class ProbeEnv:
     windows_memory: Callable[[], tuple[int, int] | None] | None = None
     windows_cpu: Callable[[], tuple[str | None, list[str] | None]] | None = None
     ollama_paths: list[str] = field(default_factory=list)
+    tesseract_paths: list[str] = field(default_factory=list)
 
 
 def _os_name(system: str) -> str:
@@ -218,6 +220,7 @@ class RealHardwareProvider:
             ollama_paths=[
                 str(Path(os.environ.get("LOCALAPPDATA", "")) / "Programs/Ollama/ollama.exe")
             ],
+            tesseract_paths=[str(p) for p in default_locations()],
         )
 
     def report(self) -> HardwareReport:
@@ -330,15 +333,7 @@ class RealHardwareProvider:
                     detail=None if ok else "Docker CLI found but the engine did not answer",
                 )
             )
-        tess = env.run(["tesseract", "--version"], 10)
-        tess_version = re.search(r"(\d+\.\d+(?:\.\d+)?)", tess.stdout) if tess else None
-        out.append(
-            RuntimeInfo(
-                name="tesseract",
-                installed=tess is not None and tess.returncode == 0,
-                version=tess_version.group(1) if tess_version else None,
-            )
-        )
+        out.append(self._tesseract())
         if os_name == "windows":
             wsl = env.run(["wsl", "--status"], 10)
             out.append(
@@ -351,6 +346,24 @@ class RealHardwareProvider:
                 )
             )
         return out
+
+    def _tesseract(self) -> RuntimeInfo:
+        binary = find_tesseract(
+            which=lambda name: name if self._env.run([name, "--version"], 10) else None,
+            candidates=[Path(p) for p in self._env.tesseract_paths],
+        )
+        if binary is None:
+            return RuntimeInfo(name="tesseract", installed=False)
+        ver = self._env.run([binary, "--version"], 10)
+        langs = self._env.run([binary, "--list-langs"], 10)
+        m = re.search(r"(\d+\.\d+(?:\.\d+)?)", ver.stdout) if ver else None
+        found = sorted(parse_langs(langs.stdout)) if langs else []
+        return RuntimeInfo(
+            name="tesseract",
+            installed=True,
+            version=m.group(1) if m else None,
+            detail=f"languages: {', '.join(found) or 'none'}",
+        )
 
     def _ollama(self) -> RuntimeInfo:
         env = self._env

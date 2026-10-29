@@ -171,7 +171,7 @@ def build_native(
         blobs,
         store,
         embedder,
-        TesseractOCR(),
+        TesseractOCR(settings.ocr_binary),
         clock,
         PipelineConfig(
             settings.chunk_max_chars,

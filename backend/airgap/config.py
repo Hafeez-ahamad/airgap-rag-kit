@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     max_files_per_request: int = 200
     max_zip_uncompressed_bytes: int = 300 * 1024 * 1024
     ocr_languages: list[str] = Field(default_factory=lambda: ["eng", "hin"])
+    ocr_binary: str | None = None  # explicit tesseract path; otherwise PATH + install locations
     ocr_min_text_chars: int = 25
 
     chunk_max_chars: int = 1200

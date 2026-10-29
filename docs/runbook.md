@@ -76,7 +76,7 @@ automatically.
 |---|---|
 | "Local model unavailable" | Ollama running? `ollama list` shows the active model? `airgap doctor` |
 | Setup blocked on PyTorch | `uv sync --extra models` in `backend/` (about 1 GB) |
-| Scanned PDF has no text | install Tesseract with language packs; re-upload |
+| Scanned PDF has no text | install Tesseract with language packs (Settings shows which are missing); set `AIRGAP_OCR_BINARY` if it is installed somewhere unusual; re-upload |
 | Very slow answers | model is split GPU/CPU or CPU-only (shown in setup); choose a smaller model |
 | Out of memory | the planner's "fits now" warning: close applications or choose a smaller model |
 | Backup refuses | the app is still running (embedded index lock) |
