@@ -3,7 +3,8 @@
 _Last updated: 2026-10-29 (session 3, end)_
 
 ## Session 3 (2026-10-29): owner's master prompt (hardware-adaptive product) is primary
-- **Branch:** `phase-2/hardware-adaptive` (from `phase-1/core`). Nothing merged to `main`.
+- **Branch:** `main` (fast-forwarded to `phase-2/hardware-adaptive` at the owner's request).
+  Remote: https://github.com/Hafeez-ahamad/airgap-rag-kit (public).
 - **Current state, evidence, blockers and the exact next step: see `docs/STATUS.md`.**
   Also `docs/IMPLEMENTATION_AUDIT.md`, `docs/ROADMAP.md`, `docs/RELEASE_READINESS.md`,
   `docs/VALIDATION.md`.

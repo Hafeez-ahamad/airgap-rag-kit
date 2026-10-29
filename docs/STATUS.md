@@ -1,7 +1,7 @@
 # Status
 
-_Last updated: 2026-10-29, session 3 (after the full native run). Branch `phase-2/hardware-adaptive` (from
-`phase-1/core`; neither merged to `main`)._
+_Last updated: 2026-10-29, session 3. Published at https://github.com/Hafeez-ahamad/airgap-rag-kit;
+`main` fast-forwarded to `phase-2/hardware-adaptive` (owner decision, 2026-10-29)._
 
 ## Completed this session (with evidence)
 | Area | Evidence |
@@ -71,7 +71,6 @@ Final checks: backend `pytest` **181 passed, 1 skipped** (Tesseract absent); ruf
 2. Set `OLLAMA_NO_CLOUD=1` and disable Ollama auto-update on this machine (persistent host
    settings; not changed by me).
 3. Keep SQLite in the native profile (ADR-0009).
-4. Merge `phase-1/core` and this branch to `main` before or after a full-stack pass elsewhere.
 
 ## Next action
 Install Tesseract and rerun the acceptance here, or run docs/VALIDATION.md §A-D on a 16 GB+
