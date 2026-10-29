@@ -12,13 +12,21 @@ _Last updated: 2026-10-28 (session 1, end)_
   - ADRs 0001–0008.
   - Checks: 75 tests pass and 1 is skipped (Tesseract missing); ruff, mypy, eslint and tsc are clean.
 - **In progress:** the Phase 1 acceptance criterion `docker compose up` from a clean clone.
+- **Session 2 (2026-10-29), live stack on this laptop:**
+  - Docker Desktop 29.9.2 is running, but the Docker VM has only 3.5 GiB of RAM.
+  - Built: all 4 images (api, worker, proxy, models).
+  - Downloaded: bge-m3, bge-reranker-v2-m3, and `qwen3:4b-instruct-2507-q4_K_M` via the fetch profile.
+  - **Verified:** API healthy on real Postgres (Alembic migration ran). Model service loads both models offline in bfloat16; one-off sanity check: EN/HI cosine 0.906 vs unrelated 0.396; reranker 0.97 vs about 0. Ollama detects CUDA on the RTX 3050 (4.0 GiB) when the host isn't starved.
+  - **Found:** Ollama 0.40 tries to reach `ollama.com` (model recommendations, cloud cache). It is blocked by the internal network and `OLLAMA_NO_CLOUD=1` is now set. **The Phase 4 no-egress test must cover this.**
+  - **Blocked:** the full stack exhausts memory. The model service uses 2.56 GiB, the VM had 38 MB free with swap full, Windows had 370–720 MB free, and the Docker engine then started returning HTTP 500. The e2e acceptance script (`eval/smoke/phase1_e2e.py`) could not even complete a TLS handshake. **No acceptance check has run end to end on the live stack yet.**
 - **Blockers:**
   1. **WSL2 and Docker Desktop are not installed.** `wsl --install` needs admin rights and a reboot, so the owner must run it. Then install Docker Desktop.
   2. Tesseract is not installed locally, so the real-OCR test is skipped. CI installs it.
 - **Approved 2026-10-28:** ADR-0003 (pypdfium2 instead of PyMuPDF) and ADR-0004 (Valkey instead of the Redis server; psycopg LGPL accepted).
 - **Decisions waiting on the owner:**
   - Whether to upgrade local Node to 24 LTS, which allows Vite 8 and ESLint 10.
-- **Exact next step:** once Docker works, run `bash deploy/dev/init_secrets.sh`, `bash deploy/dev/fetch_models.sh`, `docker compose -f deploy/docker-compose.yml --profile fetch run --rm ollama-fetch`, then `docker compose -f deploy/docker-compose.yml up -d --build`. Then do the manual acceptance run from `docs/reports/phase1.md` with real models, fix what breaks, and merge `phase-1/core` → `main`. After that, start the Phase 2 plan (BUILD_PROMPT §7.1).
+- **Exact next step (updated 2026-10-29):** the owner chooses how to get more memory: raise the WSL memory limit via `.wslconfig`, or use a bigger machine. Then rerun `cd backend && uv run python ../eval/smoke/phase1_e2e.py` with `AIRGAP_MODEL_DTYPE=bfloat16` and the GPU overlay.
+- **Original next step:** once Docker works, run `bash deploy/dev/init_secrets.sh`, `bash deploy/dev/fetch_models.sh`, `docker compose -f deploy/docker-compose.yml --profile fetch run --rm ollama-fetch`, then `docker compose -f deploy/docker-compose.yml up -d --build`. Then do the manual acceptance run from `docs/reports/phase1.md` with real models, fix what breaks, and merge `phase-1/core` → `main`. After that, start the Phase 2 plan (BUILD_PROMPT §7.1).
 
 ---
 
