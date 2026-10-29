@@ -8,7 +8,15 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from airgap.core.ports import BlobStore, Clock, EmbeddedChunk, Embedder, OCREngine, VectorStore
+from airgap.core.ports import (
+    BlobStore,
+    Clock,
+    EmbeddedChunk,
+    Embedder,
+    JobQueue,
+    OCREngine,
+    VectorStore,
+)
 from airgap.core.types import Chunk, DocStatus
 from airgap.db.models import Document
 from airgap.ingestion.chunker import DocMeta, chunk_blocks
@@ -113,3 +121,21 @@ class IngestionPipeline:
                     for c, d, t in zip(batch, dense, texts, strict=True)
                 ]
             )
+
+
+def recover_interrupted(sessions: sessionmaker[Session], queue: JobQueue) -> list[str]:
+    """Re-queue documents left mid-ingestion by a crash or restart (idempotent: the pipeline
+    re-indexes the version and removes other versions' chunks)."""
+    from sqlalchemy import select
+
+    pending = {DocStatus.QUEUED.value, DocStatus.PARSING.value, DocStatus.EMBEDDING.value}
+    with sessions() as db:
+        jobs = [
+            f"{d.id}:{d.current_version}"
+            for d in db.scalars(select(Document).where(Document.status.in_(pending)))
+        ]
+    for job in jobs:
+        queue.enqueue(job)
+    if jobs:
+        log.info("re-queued interrupted ingestion jobs", extra={"count": len(jobs)})
+    return jobs

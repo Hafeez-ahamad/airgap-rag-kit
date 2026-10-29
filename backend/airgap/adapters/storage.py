@@ -69,3 +69,26 @@ class RedisQueue:
 class SystemClock:
     def now(self) -> datetime:
         return datetime.now(UTC)
+
+
+class ThreadQueue:
+    """In-process job queue for the native profile (single API process)."""
+
+    def __init__(self) -> None:
+        import queue
+
+        self._q: queue.Queue[str] = queue.Queue()
+
+    def enqueue(self, job: str) -> None:
+        self._q.put(job)
+
+    def dequeue(self, timeout_s: float) -> str | None:
+        import queue
+
+        try:
+            return self._q.get(timeout=timeout_s) if timeout_s > 0 else self._q.get_nowait()
+        except queue.Empty:
+            return None
+
+    def ping(self) -> bool:
+        return True

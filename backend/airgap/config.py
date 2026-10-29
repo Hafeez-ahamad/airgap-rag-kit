@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     profile: Literal["native", "compose"] = "compose"
     data_dir: Path = Path("./data")
     models_dir: Path = Path("../models")
+    host: str = "127.0.0.1"  # native profile: local-only unless explicitly configured
+    port: int = 8000
+    model_device: str = "cpu"  # in-process embedder/reranker (native profile)
+    model_dtype: str = "bfloat16"
     dev_auth: bool = False  # Phase 1 stub user (ADR-0008); real auth is ADR-0010
     cookie_secure: bool = True  # session cookies only over HTTPS (localhost counts as secure)
     audit_store_questions: bool = False  # audit keeps a digest of questions unless enabled

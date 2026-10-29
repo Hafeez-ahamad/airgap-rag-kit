@@ -11,16 +11,19 @@ from airgap.db.session import make_engine
 target_metadata = Base.metadata
 
 
+def _url() -> str:
+    """Explicit URL from the caller (native profile) wins over AIRGAP_DATABASE_URL."""
+    return context.config.get_main_option("sqlalchemy.url") or Settings().resolved_database_url
+
+
 def run_migrations_offline() -> None:
-    context.configure(
-        url=Settings().resolved_database_url, target_metadata=target_metadata, literal_binds=True
-    )
+    context.configure(url=_url(), target_metadata=target_metadata, literal_binds=True)
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    engine = make_engine(Settings().resolved_database_url)
+    engine = make_engine(_url())
     with engine.connect() as connection:
         context.configure(
             connection=connection,
