@@ -114,6 +114,7 @@ services:
       AIRGAP_EMBEDDER_PATH: /models/embedder
       AIRGAP_RERANKER_PATH: /models/reranker
       AIRGAP_MODEL_DEVICE: ${AIRGAP_MODEL_DEVICE:-cpu}
+      AIRGAP_MODEL_DTYPE: ${AIRGAP_MODEL_DTYPE:-float32}
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
     networks: [backend]

@@ -4,6 +4,7 @@ Env:
   AIRGAP_EMBEDDER_PATH   local directory with the embedding model (default /models/embedder)
   AIRGAP_RERANKER_PATH   local directory with the reranker model  (default /models/reranker)
   AIRGAP_MODEL_DEVICE    cpu | cuda (default cpu)
+  AIRGAP_MODEL_DTYPE     float32 | bfloat16 | float16 (default float32; bfloat16 halves RAM)
   AIRGAP_MAX_BATCH       maximum texts per request (default 64)
 """
 
@@ -40,13 +41,21 @@ class Models:
     reranker_name: str
 
 
-# TODO(verify): `local_files_only` on SentenceTransformer/CrossEncoder against the pinned
-# sentence-transformers version once the model image is built (marker: model).
+def _model_kwargs(dtype: str) -> dict[str, Any]:
+    import torch
+
+    if dtype not in {"float32", "bfloat16", "float16"}:
+        raise RuntimeError(f"unsupported AIRGAP_MODEL_DTYPE {dtype!r}")
+    return {"dtype": getattr(torch, dtype)}
+
+
 class _STEmbedder:
-    def __init__(self, path: Path, device: str) -> None:
+    def __init__(self, path: Path, device: str, dtype: str) -> None:
         from sentence_transformers import SentenceTransformer
 
-        self._model = SentenceTransformer(str(path), device=device, local_files_only=True)
+        self._model = SentenceTransformer(
+            str(path), device=device, local_files_only=True, model_kwargs=_model_kwargs(dtype)
+        )
 
     def dim(self) -> int:
         return int(self._model.get_sentence_embedding_dimension())
@@ -57,13 +66,19 @@ class _STEmbedder:
 
 
 class _STReranker:
-    def __init__(self, path: Path, device: str) -> None:
+    def __init__(self, path: Path, device: str, dtype: str) -> None:
+        import torch
         from sentence_transformers import CrossEncoder
 
-        self._model = CrossEncoder(str(path), device=device, local_files_only=True)
+        self._identity = torch.nn.Identity()
+        self._model = CrossEncoder(
+            str(path), device=device, local_files_only=True, model_kwargs=_model_kwargs(dtype)
+        )
 
     def predict(self, pairs: list[tuple[str, str]]) -> list[float]:
-        logits = self._model.predict(pairs, batch_size=16)
+        # Raw logits (Identity), then one sigmoid here: newer sentence-transformers versions
+        # apply a default activation themselves, which would otherwise be applied twice.
+        logits = self._model.predict(pairs, batch_size=16, activation_fn=self._identity)
         return [1.0 / (1.0 + math.exp(-float(x))) for x in logits]  # sigmoid -> [0, 1]
 
 
@@ -73,12 +88,15 @@ def load_models() -> Models:
     if missing:
         raise RuntimeError(f"offline variables not set: {missing}")
     device = os.environ.get("AIRGAP_MODEL_DEVICE", "cpu")
+    dtype = os.environ.get("AIRGAP_MODEL_DTYPE", "float32")
     emb = Path(os.environ.get("AIRGAP_EMBEDDER_PATH", "/models/embedder"))
     rer = Path(os.environ.get("AIRGAP_RERANKER_PATH", "/models/reranker"))
     for path in (emb, rer):
         if not (path / "config.json").is_file():
             raise RuntimeError(f"model directory {path} has no config.json (weights not installed)")
-    return Models(_STEmbedder(emb, device), _STReranker(rer, device), emb.name, rer.name)
+    return Models(
+        _STEmbedder(emb, device, dtype), _STReranker(rer, device, dtype), emb.name, rer.name
+    )
 
 
 class EmbedRequest(BaseModel):
