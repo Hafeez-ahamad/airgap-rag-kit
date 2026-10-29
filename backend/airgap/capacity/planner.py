@@ -6,6 +6,7 @@ Every number it produces is an ESTIMATE built from catalogue data and the assump
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from enum import StrEnum
 from typing import Literal
@@ -34,7 +35,7 @@ ASSUMPTIONS = [
     "Platform services: native profile 0.6 GiB, compose profile 1.5 GiB (estimates, unmeasured).",
     "GGUF weights resident size equals the download size (estimate).",
     "Runtime host and GPU overheads come from the catalogue runtime entry (estimates).",
-    "Retrieval models resident size: measured once on one host (see catalogue).",
+    "Retrieval models: budgeted at their measured loading peak (one sample, see catalogue).",
     "KV cache: 2 x layers x kv_heads x head_dim x bytes per element per token; sliding-window "
     "layers cap at their window (prediction only).",
     "Apple unified memory: GPU may use about 67% of RAM (estimate; macOS default varies).",
@@ -207,7 +208,7 @@ def _budget(ctx: _Context, with_retrieval: bool) -> MemoryBudget:
     total = r.ram_total_bytes or 0
     reserve = _os_reserve(total)
     services = SERVICES_BYTES[ctx.deployment]
-    retrieval = ctx.catalog.retrieval.resident_bytes if with_retrieval else 0
+    retrieval = ctx.catalog.retrieval.planning_bytes if with_retrieval else 0
     fixed = services + retrieval
     budget = max(0, total - reserve - fixed)
     now = None if r.ram_available_bytes is None else max(0, r.ram_available_bytes - fixed)
@@ -252,7 +253,8 @@ def _place(
         spill = model - on_gpu
         need = _with_headroom(host + spill, h)
         if need <= budget.llm_ram_budget_bytes:
-            return Placement.PARTIAL_OFFLOAD, need, on_gpu, round(on_gpu / model, 2)
+            share = math.floor(on_gpu / model * 100) / 100  # never round up to 100%
+            return Placement.PARTIAL_OFFLOAD, need, on_gpu, share
         return None
     need = _with_headroom(host + model, h)
     if need <= budget.llm_ram_budget_bytes:

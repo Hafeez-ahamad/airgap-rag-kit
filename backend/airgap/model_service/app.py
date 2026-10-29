@@ -58,7 +58,10 @@ class _STEmbedder:
         )
 
     def dim(self) -> int:
-        return int(self._model.get_sentence_embedding_dimension())
+        dim = self._model.get_sentence_embedding_dimension()
+        if dim is None:
+            raise RuntimeError("embedding model does not declare its output dimension")
+        return int(dim)
 
     def encode(self, texts: list[str]) -> list[list[float]]:
         vectors = self._model.encode(texts, normalize_embeddings=True, batch_size=16)

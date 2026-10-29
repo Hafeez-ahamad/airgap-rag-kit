@@ -113,6 +113,13 @@ class RetrievalProfile(BaseModel):
     dtype: str
     resident_bytes: int
     resident_source: str
+    peak_bytes: int | None = None  # transient peak while loading, if measured
+    peak_source: str | None = None
+
+    @property
+    def planning_bytes(self) -> int:
+        """Budget for the worst moment (loading), not only steady state."""
+        return max(self.resident_bytes, self.peak_bytes or 0)
 
 
 class Catalog(BaseModel):

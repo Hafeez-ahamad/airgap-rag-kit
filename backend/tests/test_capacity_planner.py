@@ -121,7 +121,11 @@ def test_constrained_gpu_profile() -> None:
     assert a.deployment == "native"  # no Docker/WSL forced on a small Windows laptop
     assert a.recommended_model_id is not None
     rec = _eval(a, a.recommended_model_id)
-    assert rec.fits_now is True, "recommendation must fit in currently free memory"
+    # Rule: recommend a model that fits in free RAM now if any does; otherwise warn.
+    if any(e.eligible and e.fits_now for e in a.evaluations):
+        assert rec.fits_now is True
+    else:
+        assert Code.NOT_ENOUGH_FREE_NOW in _codes(rec.warnings)
     assert rec.placement in {Placement.GPU, Placement.PARTIAL_OFFLOAD}
     assert a.settings is not None and a.settings.num_parallel == 1
     assert a.settings.ingestion_workers == 1 and a.settings.ingestion_batch_size <= 8
@@ -325,3 +329,17 @@ def test_co_residency_feasible_and_infeasible_with_suggestions() -> None:
     assert isinstance(sessions, dict) and all(v >= 1 for v in sessions.values())
     bad = plan_combination(report, CATALOG, ["qwen3-14b-q4km", "qwen3-8b-q4km"])
     assert not bad["feasible"] and bad["suggestions"]
+
+
+def test_recommendation_fits_free_memory_when_possible() -> None:
+    spec = builtin_profiles()["constrained-gpu"].model_copy(update={"ram_available_gib": 7.5})
+    a = assess(spec.to_report(), CATALOG)
+    rec = _eval(a, a.recommended_model_id or "")
+    assert rec.fits_now is True and Code.NOT_ENOUGH_FREE_NOW not in _codes(rec.warnings)
+
+
+def test_retrieval_budget_uses_measured_loading_peak() -> None:
+    r = CATALOG.retrieval
+    assert r.peak_bytes is not None and r.peak_source and "measured" in r.peak_source
+    a = _assess("balanced-32-12")
+    assert a.budget.retrieval_bytes == max(r.resident_bytes, r.peak_bytes)

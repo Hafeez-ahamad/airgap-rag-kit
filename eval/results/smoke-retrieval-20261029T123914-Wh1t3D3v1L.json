@@ -1,0 +1,17 @@
+{
+ "level": "L5 lightweight real-service smoke (one sample, not a benchmark)",
+ "at": "2026-10-29T12:39:14.914134+00:00",
+ "host": "Wh1t3D3v1L",
+ "dtype": "bfloat16",
+ "embedder": "BAAI/bge-m3@5617a9f",
+ "reranker": "BAAI/bge-reranker-v2-m3@953dc6f",
+ "embedding_dim": 1024,
+ "load_and_first_embed_seconds": 57.7,
+ "process_rss_before_bytes": 54980608,
+ "process_peak_rss_bytes": 4308160512,
+ "cosine_en_hi_same_meaning": 0.915,
+ "cosine_en_unrelated": 0.518,
+ "rerank_relevant": 0.971,
+ "rerank_irrelevant": 0.0,
+ "passed": true
+}
