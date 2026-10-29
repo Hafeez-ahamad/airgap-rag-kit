@@ -1,0 +1,19 @@
+{
+ "level": "L5 real-service observation (native profile)",
+ "at": "2026-10-29T12:19:16.007325+00:00",
+ "host": "Wh1t3D3v1L",
+ "pids": [3584, 16508, 21552],
+ "pid_roles": {"16508": "airgap serve (native app)", "3584": "ollama", "21552": "ollama"},
+ "note": "Raw JSON from this run was overwritten by run 2 before the script used unique names; this file reproduces the run's printed output verbatim. The chat in this run returned 401 (client cookie bug, since fixed), so the window was idle.",
+ "limitations": [
+  "connection-table sampling can miss connections shorter than the sampling interval",
+  "DNS (UDP) lookups are not observed",
+  "only the listed processes are checked, not the whole host",
+  "not a substitute for a host firewall capture"
+ ],
+ "guard": {"ok": true, "attempts": {"1.1.1.1": "blocked by guard", "8.8.8.8": "blocked by guard", "2606:4700:4700::1111": "blocked by guard"}},
+ "samples": 276,
+ "chat": "HTTP 401, 36 bytes",
+ "external_connections": {"34.36.133.15": ["pid 21552 ESTABLISHED", "pid 3584 ESTABLISHED"]},
+ "passed": false
+}

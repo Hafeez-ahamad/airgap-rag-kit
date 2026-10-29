@@ -18,6 +18,10 @@ from airgap.adapters.model_service import RemoteEmbedder, RemoteReranker
 from airgap.adapters.storage import FileBlobStore, RedisQueue, SystemClock
 from airgap.api.app import create_app
 from airgap.api.services import Services
+from airgap.auth.audit import AuditLog
+from airgap.auth.service import AuthService
+from airgap.capacity.catalog import load_catalog
+from airgap.capacity.probe import RealHardwareProvider
 from airgap.chat.history import ChatStore
 from airgap.chat.orchestrator import Orchestrator
 from airgap.chat.routing import SingleModelRouter
@@ -26,13 +30,16 @@ from airgap.core.ports import GenerationOptions
 from airgap.db.session import make_engine, make_session_factory
 from airgap.ingestion.documents import DocumentService, UploadLimits
 from airgap.ingestion.ocr import TesseractOCR
-from airgap.ingestion.pipeline import IngestionPipeline, PipelineConfig
+from airgap.ingestion.pipeline import IngestionPipeline, PipelineConfig, recover_interrupted
 from airgap.llm_backends.ollama import OllamaBackend
 from airgap.logging_setup import configure_logging
+from airgap.models_manager.runtime_admin import OllamaAdmin
 from airgap.offline import enforce_offline
 from airgap.retrieval.gate import ConfidenceGate
 from airgap.retrieval.qdrant_store import QdrantStore
 from airgap.retrieval.retriever import HybridRetriever, RetrieverConfig
+from airgap.setup.service import SetupService
+from airgap.setup.state import SetupStore
 
 log = logging.getLogger(__name__)
 HEARTBEAT = Path(tempfile.gettempdir()) / "airgap-worker-heartbeat"
@@ -73,11 +80,26 @@ def build_services(settings: Settings) -> Services:
     orchestrator = Orchestrator(
         retriever, SingleModelRouter(llm), GenerationOptions(num_ctx=settings.llm_num_ctx)
     )
+    catalog = load_catalog()
+    data_dir = settings.data_dir
+    # In the compose profile the scan runs inside the API container, so it sees the container's
+    # view (no nvidia-smi there). install.sh runs `airgap scan` on the host for the real decision.
+    setup = SetupService(
+        SetupStore(data_dir / "setup.json"),
+        catalog,
+        lambda: RealHardwareProvider(data_dir, settings.ollama_url),
+        OllamaAdmin(settings.ollama_url),
+        settings.models_dir,
+        on_model_ready=lambda mid: llm.set_model(catalog.llm(mid).artifacts["ollama"].tag),
+    )
     return Services(
         settings=settings,
         documents=documents,
         chat=ChatStore(sessions, clock),
         orchestrator=orchestrator,
+        auth=AuthService(sessions, clock),
+        audit=AuditLog(sessions, clock, store_questions=settings.audit_store_questions),
+        setup=setup,
         health_checks={
             "database": lambda: _db_ok(sessions),
             "queue": queue.ping,
@@ -121,6 +143,7 @@ def worker() -> None:
         nonlocal running
         running = False
 
+    recover_interrupted(sessions, queue)
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
     log.info("ingestion worker started")

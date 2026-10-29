@@ -31,7 +31,10 @@ x-app-env: &app-env
   AIRGAP_OLLAMA_URL: http://ollama:11434
   AIRGAP_LLM_MODEL: ${AIRGAP_LLM_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
   AIRGAP_LLM_NUM_CTX: ${AIRGAP_LLM_NUM_CTX:-4096}
+  AIRGAP_PROFILE: compose
   AIRGAP_BLOB_ROOT: /data/blobs
+  AIRGAP_DATA_DIR: /data/state
+  AIRGAP_MODELS_DIR: /models-ro
   AIRGAP_MAX_UPLOAD_BYTES: ${AIRGAP_MAX_UPLOAD_BYTES:-52428800}
   AIRGAP_CONFIDENCE_THRESHOLD: ${AIRGAP_CONFIDENCE_THRESHOLD:-0.30}
   HF_HUB_OFFLINE: "1"
@@ -48,6 +51,7 @@ volumes:
   qdrant: {}
   blobs: {}
   ollama: {}
+  state: {}
 
 secrets:
   pg_password:
@@ -82,7 +86,7 @@ services:
     environment: *app-env
     networks: [backend]
     secrets: [pg_password]
-    volumes: ["blobs:/data/blobs"]
+    volumes: ["blobs:/data/blobs", "state:/data/state"]
     read_only: true
     tmpfs: ["/tmp"]
     depends_on:

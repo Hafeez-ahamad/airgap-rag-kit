@@ -1,0 +1,28 @@
+{
+ "level": "L5 real-service observation (native profile)",
+ "at": "2026-10-29T12:22:03.768408+00:00",
+ "host": "Wh1t3D3v1L",
+ "pids": [
+  3584,
+  16508,
+  21552
+ ],
+ "limitations": [
+  "connection-table sampling can miss connections shorter than the sampling interval",
+  "DNS (UDP) lookups are not observed",
+  "only the listed processes are checked, not the whole host",
+  "not a substitute for a host firewall capture"
+ ],
+ "guard": {
+  "ok": true,
+  "attempts": {
+   "1.1.1.1": "blocked by guard",
+   "8.8.8.8": "blocked by guard",
+   "2606:4700:4700::1111": "blocked by guard"
+  }
+ },
+ "samples": 275,
+ "chat": "HTTP 200, 396 bytes",
+ "external_connections": {},
+ "passed": true
+}

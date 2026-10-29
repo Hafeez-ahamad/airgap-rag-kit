@@ -281,3 +281,24 @@ def test_native_profile_talks_to_host_ollama_not_container_name() -> None:
     assert Settings(profile="compose").ollama_url == "http://ollama:11434"
     custom = Settings(profile="native", ollama_url="http://10.0.0.2:11434")
     assert custom.ollama_url == "http://10.0.0.2:11434"
+
+
+def test_no_egress_parsers_flag_only_public_addresses() -> None:
+    import importlib.util
+
+    path = Path(__file__).resolve().parents[2] / "eval" / "security" / "no_egress.py"
+    spec = importlib.util.spec_from_file_location("no_egress", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    win = (
+        "  TCP    127.0.0.1:8000     127.0.0.1:51000    ESTABLISHED     4242\n"
+        "  TCP    192.168.1.5:52000  34.117.59.81:443   ESTABLISHED     4242\n"
+        "  TCP    0.0.0.0:11434      0.0.0.0:0          LISTENING       77\n"
+    )
+    rows = mod.parse_connections(win, "Windows")
+    assert [(h, p) for h, _, p in rows if mod.is_external(h)] == [("34.117.59.81", 4242)]
+    linux = 'ESTAB 0 0 10.0.0.2:40000 [2606:4700::1111]:443 users:(("ollama",pid=77,fd=3))\n'
+    rows = mod.parse_connections(linux, "Linux")
+    assert rows == [("2606:4700::1111", "ESTAB", 77)] and mod.is_external(rows[0][0])
+    assert not mod.is_external("10.1.2.3") and not mod.is_external("::1")
