@@ -8,7 +8,7 @@ Lab:        ``SimulatedHardwareProvider`` -> the SAME ``assess`` -> returned, ne
 from __future__ import annotations
 
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -42,12 +42,14 @@ class SetupService:
         downloader_factory: Callable[[], Downloader] = Downloader,
         retrieval_base_url: str = "https://huggingface.co",
         on_model_ready: Callable[[str], None] | None = None,
+        ocr_languages: Sequence[str] = ("eng", "hin"),
     ) -> None:
         self.store, self.catalog = store, catalog
         self._real_provider, self._admin = real_provider, admin
         self._models_dir, self._downloader_factory = models_dir, downloader_factory
         self._retrieval_base_url = retrieval_base_url
         self._on_model_ready = on_model_ready
+        self._ocr_languages = ocr_languages
         self._job: InstallJob | None = None
         self._job_lock = threading.Lock()
 
@@ -90,7 +92,9 @@ class SetupService:
             self.store.set_step(Step.SCAN, StepStatus.FAILED, type(exc).__name__)
             raise
         self.store.record_scan(assessment)
-        checks = check_prerequisites(report, assessment, self.catalog)
+        checks = check_prerequisites(
+            report, assessment, self.catalog, ocr_languages=self._ocr_languages
+        )
         blocking = [c.id for c in checks if c.blocking]
         self.store.set_step(
             Step.PREREQUISITES,
@@ -107,7 +111,7 @@ class SetupService:
 
     def prerequisites(self) -> list[Check]:
         a = self._real()
-        return check_prerequisites(a.report, a, self.catalog)
+        return check_prerequisites(a.report, a, self.catalog, ocr_languages=self._ocr_languages)
 
     def plan(self, model_ids: list[str]) -> InstallPlan:
         a = self._real()

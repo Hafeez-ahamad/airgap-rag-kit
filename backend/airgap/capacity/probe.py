@@ -132,31 +132,31 @@ def _win_memory() -> tuple[int, int] | None:
             ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
         ]
 
-    if sys.platform != "win32":
-        return None
-    status = MemoryStatusEx()
-    status.dwLength = ctypes.sizeof(MemoryStatusEx)
-    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
-        return None
-    return int(status.ullTotalPhys), int(status.ullAvailPhys)
+    if sys.platform == "win32":
+        status = MemoryStatusEx()
+        status.dwLength = ctypes.sizeof(MemoryStatusEx)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+            return int(status.ullTotalPhys), int(status.ullAvailPhys)
+    return None
 
 
 def _win_cpu() -> tuple[str | None, list[str] | None]:
-    if sys.platform != "win32":
-        return None, None
-    import winreg
-
     name: str | None = None
-    try:
-        key = winreg.OpenKey(
-            winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0"
-        )
-        name = str(winreg.QueryValueEx(key, "ProcessorNameString")[0]).strip()
-    except OSError:
-        pass
-    present = ctypes.windll.kernel32.IsProcessorFeaturePresent
-    features = {"avx": 39, "avx2": 40, "avx512f": 41}
-    return name, [f for f, code in features.items() if present(code)]
+    found: list[str] | None = None
+    if sys.platform == "win32":
+        import winreg
+
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0"
+            )
+            name = str(winreg.QueryValueEx(key, "ProcessorNameString")[0]).strip()
+        except OSError:
+            pass
+        present = ctypes.windll.kernel32.IsProcessorFeaturePresent
+        features = {"avx": 39, "avx2": 40, "avx512f": 41}
+        found = [f for f, code in features.items() if present(code)]
+    return name, found
 
 
 def _parse_cpuinfo(text: str) -> tuple[str | None, int | None, list[str] | None]:

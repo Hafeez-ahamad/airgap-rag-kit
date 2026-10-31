@@ -192,6 +192,7 @@ def build_native(
         admin or OllamaAdmin(settings.ollama_url),
         models_dir,
         on_model_ready=on_ready,
+        ocr_languages=tuple(settings.ocr_languages),
     )
     services = Services(
         settings=settings,

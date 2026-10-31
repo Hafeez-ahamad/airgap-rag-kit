@@ -91,6 +91,7 @@ def build_services(settings: Settings) -> Services:
         OllamaAdmin(settings.ollama_url),
         settings.models_dir,
         on_model_ready=lambda mid: llm.set_model(catalog.llm(mid).artifacts["ollama"].tag),
+        ocr_languages=tuple(settings.ocr_languages),
     )
     return Services(
         settings=settings,
