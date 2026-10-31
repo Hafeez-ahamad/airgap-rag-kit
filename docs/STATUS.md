@@ -15,6 +15,7 @@ _Last updated: 2026-10-29. Published at https://github.com/Hafeez-ahamad/airgap-
 | General Assistant mode; UI rebuild | `ui.test.tsx` (8 tests); real model chat through the UI |
 | Eval harness, no-egress tests | `eval/run_eval.py`, `eval/security/no_egress.py`, `deploy/security/no_egress_compose.sh` |
 | Docs | runbook, threat model, hardware matrix, validation guide, release readiness, ADR-0009/0010/0011 |
+| CI green on GitHub (2026-10-31) | mypy passes on Linux; the capacity catalogue data is now tracked (the `data/` ignore rule had excluded it). Also fixed: model service defaults to bfloat16 in compose; setup prerequisites now use the configured OCR languages |
 
 Final checks: backend `pytest` **181 passed, 1 skipped** (Tesseract absent); ruff and mypy clean
 (99 files); UI `vitest` **8 passed**; eslint, tsc and vite build clean.
