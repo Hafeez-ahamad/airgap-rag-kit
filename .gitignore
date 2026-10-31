@@ -37,7 +37,8 @@ secrets/
 !deploy/nginx/README-tls.md
 
 # Runtime data
-data/
+/data/
+/backend/data/
 *.db
 *.sqlite
 

@@ -1,0 +1,92 @@
+# Synthetic device specifications for the Compatibility Lab and simulated-profile tests.
+# These are TEST INPUTS, not promises that any model performs well on such a device, and not
+# measurements of real machines. Values in GiB are converted to bytes by the loader.
+
+profiles:
+  - id: constrained-gpu
+    label: "Constrained GPU laptop (8 GB RAM, 4 GB VRAM)"
+    description: "Small NVIDIA laptop GPU, low RAM, limited free disk."
+    os: windows
+    arch: amd64
+    cpu_model: "Synthetic 8-core x86 laptop CPU"
+    cpu_cores: 8
+    cpu_threads: 16
+    cpu_flags: [sse4_2, avx, avx2, fma]
+    ram_total_gib: 8
+    ram_available_gib: 5
+    disk_free_gib: 20
+    gpus:
+      - { vendor: nvidia, name: "Synthetic 4 GB laptop GPU", vram_total_gib: 4, vram_free_gib: 3.8,
+          driver_version: "572.47", compute_capability: "8.6" }
+
+  - id: cpu-only-16
+    label: "CPU-only desktop (16 GB RAM)"
+    description: "No CUDA-capable GPU."
+    os: linux
+    arch: amd64
+    cpu_model: "Synthetic 6-core x86 desktop CPU"
+    cpu_cores: 6
+    cpu_threads: 12
+    cpu_flags: [sse4_2, avx, avx2, fma]
+    ram_total_gib: 16
+    ram_available_gib: 13
+    disk_free_gib: 200
+    gpus: []
+
+  - id: balanced-32-12
+    label: "Balanced workstation (32 GB RAM, 12 GB VRAM)"
+    description: "Mid-range NVIDIA desktop GPU."
+    os: linux
+    arch: amd64
+    cpu_model: "Synthetic 12-core x86 workstation CPU"
+    cpu_cores: 12
+    cpu_threads: 24
+    cpu_flags: [sse4_2, avx, avx2, fma, avx512f]
+    ram_total_gib: 32
+    ram_available_gib: 28
+    disk_free_gib: 500
+    gpus:
+      - { vendor: nvidia, name: "Synthetic 12 GB GPU", vram_total_gib: 12, vram_free_gib: 11.5,
+          driver_version: "570.00", compute_capability: "8.9" }
+
+  - id: high-64-24
+    label: "High-capacity workstation (64 GB RAM, 24 GB VRAM)"
+    description: "High-end NVIDIA GPU."
+    os: linux
+    arch: amd64
+    cpu_model: "Synthetic 16-core x86 workstation CPU"
+    cpu_cores: 16
+    cpu_threads: 32
+    cpu_flags: [sse4_2, avx, avx2, fma, avx512f]
+    ram_total_gib: 64
+    ram_available_gib: 58
+    disk_free_gib: 1000
+    gpus:
+      - { vendor: nvidia, name: "Synthetic 24 GB GPU", vram_total_gib: 24, vram_free_gib: 23.5,
+          driver_version: "570.00", compute_capability: "8.9" }
+
+  - id: apple-silicon-16
+    label: "Apple Silicon laptop (16 GB unified memory)"
+    description: "Unified memory shared by CPU and GPU."
+    os: darwin
+    arch: arm64
+    cpu_model: "Synthetic Apple Silicon"
+    cpu_cores: 8
+    cpu_threads: 8
+    ram_total_gib: 16
+    ram_available_gib: 11
+    disk_free_gib: 150
+    gpus:
+      - { vendor: apple, name: "Synthetic Apple GPU", unified_memory: true }
+
+  - id: insufficient-unknown
+    label: "Insufficient / unknown device"
+    description: "RAM not detectable, tiny disk, GPU without a usable driver."
+    os: linux
+    arch: amd64
+    ram_total_gib: null
+    ram_available_gib: null
+    disk_free_gib: 3
+    gpu_probe_ok: false
+    gpus:
+      - { vendor: nvidia, name: "GPU with no driver" }

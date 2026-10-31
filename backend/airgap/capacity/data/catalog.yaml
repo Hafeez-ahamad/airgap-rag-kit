@@ -1,0 +1,227 @@
+# AirGap model catalogue. Single source of truth for the planner, installer, CLI and
+# Compatibility Lab. Change it only with a review; bump catalog_version on every change.
+#
+# Provenance rules (REQUIREMENTS rule 2 and 4):
+# - architecture: copied from the model's official config.json (source + date recorded).
+# - download_bytes: from the runtime's registry listing (rounded by the registry; recorded as
+#   such) or measured from a local artifact (exact).
+# - resident estimates are DERIVED by the planner (weights + KV + runtime overhead). Nothing in
+#   this file is a measured RAM/VRAM requirement unless a `measured` block says so.
+# - quality_rank stays null until eval/model_bakeoff.py has measured it.
+
+schema_version: 1
+catalog_version: "2026.10.29-2"
+
+runtimes:
+  ollama:
+    display_name: Ollama
+    licence: MIT
+    tested_versions: ["0.40.12"]
+    min_version: "0.40.0"
+    platforms: [windows/amd64, windows/arm64, linux/amd64, linux/arm64, darwin/arm64]
+    accelerators: [cpu, cuda, metal]   # ROCm exists upstream but is untested here
+    # Estimates, not measurements. Replace with bench/ results per runtime and GPU.
+    host_overhead_bytes: 536870912     # 0.5 GiB: runner process, buffers, mmap bookkeeping
+    gpu_overhead_bytes: 671088640      # 0.625 GiB: CUDA/Metal context + compute buffers
+    kv_bytes_per_element: {f16: 2, q8_0: 1, q4_0: 0.5}
+    install_url: https://ollama.com/download
+
+llms:
+  - id: qwen3-1.7b-q4km
+    display_name: Qwen3 1.7B
+    family: qwen3
+    params_b: 1.7
+    quantization: Q4_K_M
+    format: gguf
+    artifacts:
+      ollama: { tag: "qwen3:1.7b-q4_K_M", download_bytes: 1400000000,
+                size_source: "ollama.com/library/qwen3/tags, listed as 1.4GB (rounded), 2026-10-29" }
+    architecture: { layers: 28, kv_heads: 8, head_dim: 128, attention: full,
+                    source: "huggingface.co/Qwen/Qwen3-1.7B config.json, 2026-10-29" }
+    max_context: 40960
+    licence: { id: apache-2.0, url: "https://huggingface.co/Qwen/Qwen3-1.7B/blob/main/LICENSE",
+               commercial_use: true, redistribution: true, verified: "card metadata 2026-10-29" }
+    languages: [multilingual]
+    capabilities: [chat, rag]
+    quality_rank: null
+    notes: ["Hybrid thinking model: thinking output must be disabled or stripped for RAG."]
+
+  - id: qwen3-4b-instruct-2507-q4km
+    display_name: Qwen3 4B Instruct (2507)
+    family: qwen3
+    params_b: 4.0
+    quantization: Q4_K_M
+    format: gguf
+    artifacts:
+      ollama: { tag: "qwen3:4b-instruct-2507-q4_K_M", download_bytes: 2500000000,
+                size_source: "ollama.com/library/qwen3/tags, listed as 2.5GB (rounded), 2026-10-29" }
+    architecture: { layers: 36, kv_heads: 8, head_dim: 128, attention: full,
+                    source: "huggingface.co/Qwen/Qwen3-4B-Instruct-2507 config.json, 2026-10-29" }
+    max_context: 262144
+    licence: { id: apache-2.0, url: "https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/blob/main/LICENSE",
+               commercial_use: true, redistribution: true, verified: "card metadata 2026-10-29" }
+    languages: [multilingual]
+    capabilities: [chat, rag]
+    quality_rank: null
+    notes: ["Phase 1 default model. Non-thinking instruct variant."]
+
+  - id: qwen2.5-7b-instruct-q4km
+    display_name: Qwen2.5 7B Instruct
+    family: qwen2.5
+    params_b: 7.6
+    quantization: Q4_K_M
+    format: gguf
+    artifacts:
+      ollama: { tag: "qwen2.5:7b", download_bytes: 4683087332,
+                size_source: "measured: local Ollama /api/tags on dev laptop, 2026-10-29 (exact)",
+                digest: "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e" }
+    architecture: { layers: 28, kv_heads: 4, head_dim: 128, attention: full,
+                    source: "Ollama /api/show model_info (qwen2.block_count, head_count_kv, embedding_length/head_count), 2026-10-29" }
+    max_context: 32768
+    licence: { id: apache-2.0, url: "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/main/LICENSE",
+               commercial_use: true, redistribution: true, verified: "licence text embedded in the Ollama artifact, 2026-10-29" }
+    languages: [multilingual]
+    capabilities: [chat, rag]
+    quality_rank: null
+    notes: []
+
+  - id: qwen3-8b-q4km
+    display_name: Qwen3 8B
+    family: qwen3
+    params_b: 8.2
+    quantization: Q4_K_M
+    format: gguf
+    artifacts:
+      ollama: { tag: "qwen3:8b-q4_K_M", download_bytes: 5200000000,
+                size_source: "ollama.com/library/qwen3/tags, listed as 5.2GB (rounded), 2026-10-29" }
+    architecture: { layers: 36, kv_heads: 8, head_dim: 128, attention: full,
+                    source: "huggingface.co/Qwen/Qwen3-8B config.json, 2026-10-29" }
+    max_context: 40960
+    licence: { id: apache-2.0, url: "https://huggingface.co/Qwen/Qwen3-8B/blob/main/LICENSE",
+               commercial_use: true, redistribution: true, verified: "card metadata 2026-10-29" }
+    languages: [multilingual]
+    capabilities: [chat, rag]
+    quality_rank: null
+    notes: ["Hybrid thinking model: thinking output must be disabled or stripped for RAG."]
+
+  - id: qwen3-14b-q4km
+    display_name: Qwen3 14B
+    family: qwen3
+    params_b: 14.8
+    quantization: Q4_K_M
+    format: gguf
+    artifacts:
+      ollama: { tag: "qwen3:14b-q4_K_M", download_bytes: 9300000000,
+                size_source: "ollama.com/library/qwen3/tags, listed as 9.3GB (rounded), 2026-10-29" }
+    architecture: { layers: 40, kv_heads: 8, head_dim: 128, attention: full,
+                    source: "huggingface.co/Qwen/Qwen3-14B config.json, 2026-10-29" }
+    max_context: 40960
+    licence: { id: apache-2.0, url: "https://huggingface.co/Qwen/Qwen3-14B/blob/main/LICENSE",
+               commercial_use: true, redistribution: true, verified: "card metadata 2026-10-29" }
+    languages: [multilingual]
+    capabilities: [chat, rag]
+    quality_rank: null
+    notes: ["Hybrid thinking model: thinking output must be disabled or stripped for RAG."]
+
+  - id: gpt-oss-20b-mxfp4
+    display_name: gpt-oss 20B
+    family: gpt-oss
+    params_b: 21.0
+    quantization: MXFP4
+    format: gguf
+    artifacts:
+      ollama: { tag: "gpt-oss:20b", download_bytes: 14000000000,
+                size_source: "ollama.com/library/gpt-oss/tags, listed as 14GB (rounded), 2026-10-29" }
+    architecture: { layers: 24, kv_heads: 8, head_dim: 64, attention: hybrid_sliding,
+                    sliding_window: 128, full_attention_layers: 12, moe: true,
+                    source: "huggingface.co/openai/gpt-oss-20b config.json (layer_types alternate sliding/full), 2026-10-29" }
+    max_context: 131072
+    licence: { id: apache-2.0, url: "https://huggingface.co/openai/gpt-oss-20b/blob/main/LICENSE",
+               commercial_use: true, redistribution: true, verified: "card metadata 2026-10-29" }
+    languages: [multilingual]
+    capabilities: [chat, rag]
+    quality_rank: null
+    notes: ["MoE: every expert's weights must be resident even though few are active per token.",
+            "Reasoning model; output channel handling not yet tested with the citation verifier."]
+
+  - id: qwen3-32b-q4km
+    display_name: Qwen3 32B
+    family: qwen3
+    params_b: 32.8
+    quantization: Q4_K_M
+    format: gguf
+    artifacts:
+      ollama: { tag: "qwen3:32b-q4_K_M", download_bytes: 20000000000,
+                size_source: "ollama.com/library/qwen3/tags, listed as 20GB (rounded), 2026-10-29" }
+    architecture: { layers: 64, kv_heads: 8, head_dim: 128, attention: full,
+                    source: "huggingface.co/Qwen/Qwen3-32B config.json, 2026-10-29" }
+    max_context: 40960
+    licence: { id: apache-2.0, url: "https://huggingface.co/Qwen/Qwen3-32B/blob/main/LICENSE",
+               commercial_use: true, redistribution: true, verified: "card metadata 2026-10-29" }
+    languages: [multilingual]
+    capabilities: [chat, rag]
+    quality_rank: null
+    notes: ["Hybrid thinking model: thinking output must be disabled or stripped for RAG."]
+
+  # Kept in the catalogue on purpose: shows the licence gate working. Not installable.
+  - id: qwen2.5-3b-instruct-q4km
+    display_name: Qwen2.5 3B Instruct
+    family: qwen2.5
+    params_b: 3.1
+    quantization: Q4_K_M
+    format: gguf
+    artifacts:
+      ollama: { tag: "qwen2.5:3b-instruct-q4_K_M", download_bytes: 1900000000,
+                size_source: "ollama.com/library/qwen2.5/tags, listed as 1.9GB (rounded), 2026-10-29" }
+    architecture: { layers: 36, kv_heads: 2, head_dim: 128, attention: full,
+                    source: "huggingface.co/Qwen/Qwen2.5-3B-Instruct config.json (hidden 2048 / 16 heads), 2026-10-29" }
+    max_context: 32768
+    licence: { id: qwen-research, url: "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE",
+               commercial_use: false, redistribution: false, verified: "card metadata 2026-10-29" }
+    languages: [multilingual]
+    capabilities: [chat, rag]
+    quality_rank: null
+    notes: ["Research licence: excluded by the licence gate (REQUIREMENTS §4.5)."]
+
+# Platform-managed retrieval models. Not user-selectable in the normal setup flow.
+retrieval_profiles:
+  - id: bge-m3+bge-reranker-v2-m3
+    display_name: Multilingual retrieval (bge-m3 + bge-reranker-v2-m3)
+    index_version: "emb=bge-m3@5617a9f/dim=1024;sparse=bm25-v1;chunk=1200/200"
+    embedder:
+      name: BAAI/bge-m3
+      revision: 5617a9f61b028005a4858fdac845db406aefb181
+      dim: 1024
+      licence: { id: mit, commercial_use: true, redistribution: true, verified: "card metadata 2026-10-28" }
+      files:
+        - { path: config.json }
+        - { path: config_sentence_transformers.json }
+        - { path: modules.json }
+        - { path: sentence_bert_config.json }
+        - { path: 1_Pooling/config.json }
+        - { path: pytorch_model.bin, bytes: 2271145830,
+            sha256: b5e0ce3470abf5ef3831aa1bd5553b486803e83251590ab7ff35a117cf6aad38 }
+        - { path: sentencepiece.bpe.model, bytes: 5069051 }
+        - { path: special_tokens_map.json }
+        - { path: tokenizer.json, bytes: 17098108 }
+        - { path: tokenizer_config.json }
+        - { path: README.md }
+    reranker:
+      name: BAAI/bge-reranker-v2-m3
+      revision: 953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e
+      licence: { id: apache-2.0, commercial_use: true, redistribution: true, verified: "card metadata 2026-10-28" }
+      files:
+        - { path: config.json }
+        - { path: model.safetensors, bytes: 2271071852,
+            sha256: d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286 }
+        - { path: sentencepiece.bpe.model, bytes: 5069051 }
+        - { path: special_tokens_map.json }
+        - { path: tokenizer.json, bytes: 17098273 }
+        - { path: tokenizer_config.json }
+        - { path: README.md }
+    download_bytes: 4586604668   # measured: both local model directories (incl. tiny cache metadata)
+    dtype: bfloat16
+    resident_bytes: 2748779069   # 2.56 GiB
+    resident_source: "measured: model-service container RSS, both models loaded, bf16, CPU, 2026-10-29 (one sample)"
+    peak_bytes: 4308160512       # 4.0 GiB: peak while loading (fp32 checkpoint cast to bf16)
+    peak_source: "measured: native in-process peak working set, Windows 11 dev laptop, bf16, CPU, 2026-10-29 (one sample; eval/results/smoke-retrieval-*)"
